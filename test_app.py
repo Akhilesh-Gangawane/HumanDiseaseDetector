@@ -4,10 +4,13 @@ import json
 def test_inference():
     # Example mock symptoms
     symptoms = {
-        "ulcers_on_tongue":1,
-        "continuous_sneezing": 0,
-        "restlessness":1
-    }
+        "high_fever":1,
+        "sunken_eyes":1,
+        "dehydration":1,
+        "diarrhoea":1,
+        "abdominal_pain":1,
+        "nausea":1
+        }
     
     url = "http://localhost:8000/predict"
     payload = {"symptoms": symptoms}

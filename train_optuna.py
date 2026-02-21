@@ -101,33 +101,34 @@ def main():
     print(classification_report(y_test, preds))
     
     joblib.dump(pipeline, "best_pipeline.joblib")
-    joblib.dump(X.columns.tolist(), "feature_names.joblib")
-    print("Model saved to best_pipeline.joblib")
+    
+    feature_names = X.columns.tolist()
+    joblib.dump(feature_names, "feature_names.joblib")
+    print(f"Model saved. Input features: {len(feature_names)}")
     
     print("\n--- Generating SHAP values ---")
-    # For SHAP, we use the XGBoost model directly
     xgb_model = pipeline.named_steps['model']
     X_test_proc = pipeline.named_steps['preprocessor'].transform(X_test)
     
-    # SHAP can be slow on large datasets/feature sets
     print("Computing SHAP values (on 100 samples)...")
     explainer = shap.TreeExplainer(xgb_model)
-    X_sample = pd.DataFrame(X_test_proc[:100], columns=X.columns)
+    # Define all feature names (Binary + Embeddings)
+    all_feature_names = feature_names + [f"node2vec_{i}" for i in range(32)]
+    # Ensure DataFrame has all feature names for SHAP labels
+    X_sample = pd.DataFrame(X_test_proc[:100], columns=all_feature_names)
     shap_values = explainer.shap_values(X_sample)
     
     # Handle SHAP output format
     if isinstance(shap_values, list):
         shap_values_to_plot = shap_values
     elif isinstance(shap_values, np.ndarray) and len(shap_values.shape) == 3:
-        # Newer SHAP/XGBoost returns (samples, features, classes)
-        # summary_plot expects a list of (samples, features) for multiclass
         print(f"Converting 3D SHAP values {shap_values.shape} to list for multiclass plot...")
         shap_values_to_plot = [shap_values[:, :, i] for i in range(shap_values.shape[2])]
     else:
         shap_values_to_plot = shap_values
     
     plt.figure()
-    shap.summary_plot(shap_values_to_plot, X_sample, show=False)
+    shap.summary_plot(shap_values_to_plot, X_sample, show=False, max_display=15)
     os.makedirs("eda_outputs", exist_ok=True)
     plt.savefig("eda_outputs/shap_summary.png")
     plt.close()

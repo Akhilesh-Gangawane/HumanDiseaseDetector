@@ -44,15 +44,56 @@ def perform_eda(df, output_dir="eda_outputs"):
     constant_cols = [col for col in df.columns if df[col].nunique() <= 1]
     print(f"Number of constant columns: {len(constant_cols)}")
 
+from sklearn.base import BaseEstimator, TransformerMixin
+
+class Node2VecTransformer(BaseEstimator, TransformerMixin):
+    def __init__(self, embeddings_path="symptom_embeddings.joblib"):
+        self.embeddings_path = embeddings_path
+
+    def fit(self, X, y=None):
+        if os.path.exists(self.embeddings_path):
+            self.embeddings_ = joblib.load(self.embeddings_path)
+        else:
+            print(f"Warning: {self.embeddings_path} not found. Using zero embeddings.")
+            self.embeddings_ = {}
+        
+        if hasattr(X, 'columns'):
+            self.feature_names_ = X.columns.tolist()
+        else:
+            self.feature_names_ = [f"f{i}" for i in range(X.shape[1])]
+        return self
+
+    def transform(self, X):
+        from sklearn.utils.validation import check_is_fitted
+        check_is_fitted(self)
+        
+        if not self.embeddings_:
+            return np.zeros((len(X), 32)) if not self.embeddings_ else np.zeros((len(X), len(next(iter(self.embeddings_.values())))))
+            
+        emb_dim = len(next(iter(self.embeddings_.values())))
+        # Convert X to numpy if it's a DataFrame
+        X_val = X.values if hasattr(X, 'values') else X
+        
+        # Create a matrix of embeddings for all features found in training
+        emb_matrix = np.array([self.embeddings_.get(s, np.zeros(emb_dim)) for s in self.feature_names_])
+        
+        # Compute result: (Samples x Features) @ (Features x EmbeddingDim)
+        raw_sums = X_val @ emb_matrix
+        counts = X_val.sum(axis=1, keepdims=True)
+        counts[counts == 0] = 1 # avoid div by zero
+        X_embeddings = raw_sums / counts
+        
+        return X_embeddings
+
 def build_preprocessor(numeric_features):
     numeric_transformer = Pipeline(steps=[
         ('imputer', SimpleImputer(strategy='constant', fill_value=0.0)),
-        # No scaling needed as everything is binary
     ])
     
     preprocessor = ColumnTransformer(
         transformers=[
-            ('num', numeric_transformer, numeric_features)
+            ('num', numeric_transformer, numeric_features),
+            ('n2v', Node2VecTransformer(embeddings_path="symptom_embeddings.joblib"), numeric_features)
         ],
         remainder='drop')
     return preprocessor

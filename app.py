@@ -4,6 +4,7 @@ import joblib
 import pandas as pd
 import os
 from typing import Dict, Any
+import pipeline # Required for unpickling global custom transformers
 
 app = FastAPI(title="Disease Prediction API")
 

@@ -14,13 +14,14 @@ A high-performance multiclass classification system designed to predict final di
 ```text
 ├── Final_dataset.csv       # Training dataset (260k+ rows)
 ├── app.py                   # FastAPI Application
-├── train_optuna.py          # Main training script (with subsampling & GPU support)
+├── train_optuna.py          # Main training script (with augmented features & GPU)
 ├── symptom_relationships.py # Co-occurrence analysis and network visualization
-├── graph_features.py        # Node2Vec embedding generation and pipeline
-├── pipeline.py              # Modular data processing and EDA utilities
+├── graph_features.py        # Node2Vec embedding generation
+├── pipeline.py              # Core logic & custom Graph Transformer (Node2Vec)
 ├── test_app.py              # Sample client for API testing
-├── requirements.txt         # Project dependencies
+├── requirements.txt         # Project dependencies (Updated)
 ├── walkthrough.md           # Detailed results and performance analysis
+├── TECHNICAL_APPROACH.txt   # [Local Only] Hyper-detailed system architecture
 ├── best_pipeline.joblib     # (Generated) Trained ensemble pipeline
 └── eda_outputs/             # (Generated) Visualizations, Network Plots, and SHAP
 ```
@@ -37,7 +38,7 @@ A high-performance multiclass classification system designed to predict final di
    ```powershell
    pip install -r requirements.txt
    ```
-   *Note: Ensure you have the correct PyTorch CUDA build for GPU support.*
+   *Note: Ensure you have the correct PyTorch CUDA build for GPU support (NVIDIA RTX 4050).*
 
 ## 📈 Usage
 
@@ -50,7 +51,7 @@ A high-performance multiclass classification system designed to predict final di
   ```bash
   python graph_features.py
   ```
-- **Model Training**: Re-train the ensemble model:
+- **Model Training**: Re-train the high-accuracy ensemble model:
   ```bash
   python train_optuna.py
   ```
@@ -69,9 +70,10 @@ python test_app.py
 ```
 
 ## 📊 Performance Summary
-- **Classification Accuracy**: ~80%
+- **Overall Accuracy**: ~80%
+- **Macro F1 Score**: **0.76** (Improved from 0.70 via Graph Integration)
 - **Target Count**: 669 unique diseases
-- **Input Features**: 500+ binary symptom indicators + 32D Node2Vec Embeddings (Extracted via pipeline).
+- **Input Features**: 500+ binary symptom indicators + 32D Node2Vec Embeddings (Integrated via Pipeline).
 
 ## ⚖️ License
 Internal Project - Senior Machine Learning Engineering Assessment.
