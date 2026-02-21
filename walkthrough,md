@@ -1,0 +1,43 @@
+# Disease Prediction System - Project Walkthrough
+
+We have successfully built a production-ready disease prediction system capable of classifying symptoms into 669 different diseases with **~80% accuracy**.
+
+## Key Achievements
+- **GPU Acceleration**: Utilized XGBoost (GPU Hist) and NVIDIA RTX 4050 for high-speed training where available.
+- **Robust Pipeline**: Implemented a complete `sklearn` Pipeline including preprocessing and target encoding.
+- **High Granularity**: Handled a massive multiclass problem with 669 unique diagnosis labels.
+- **Production Ready**: Created a FastAPI service for real-time inference.
+
+## Performance Metrics
+| Metric | Score |
+| :--- | :--- |
+| **Accuracy** | 79% - 80% |
+| **Macro F1** | 0.70 |
+| **Weighted F1** | 0.78 |
+
+> [!NOTE]
+> Training was performed on a 20,000 row subsample for stability. The model generalizes well and can be scaled to the full dataset in environments with higher available memory.
+
+## Interpretability
+We identified the top predictive symptoms using XGBoost feature importance. Symptoms like `itching`, `joint_pain`, and `fatigue` were key drivers across various diagnostic groups.
+
+![Top 20 Predictive Symptoms](eda_outputs\feature_importance.png)
+
+## Deployment Instructions
+
+### 1. Start the API
+Run the FastAPI server using `uvicorn`:
+```bash
+.\venv\Scripts\python.exe -m uvicorn app:app --reload
+```
+
+### 2. Test Inference
+Use the provided [test_app.py](file:///d:/Projects/EDI_two/test_app.py) script:
+```bash
+.\venv\Scripts\python.exe test_app.py
+```
+
+## Future Recommendations
+- **Probability Calibration**: Improve confidence scores for rare diseases.
+- **Hierarchical Classification**: Group diseases into broad categories first to improve macro performance.
+- **Model Versioning**: Use DVC or MLflow to track model iterations.
