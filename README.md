@@ -5,8 +5,9 @@ A high-performance multiclass classification system designed to predict final di
 ## 🚀 Features
 - **Multi-Model Ensemble**: Combines the strengths of XGBoost, LightGBM, and Random Forest for robust generalization.
 - **GPU Acceleration**: Optimized for NVIDIA GPU using `tree_method='hist'` and CUDA support.
+- **Graph-Based Feature Engineering**: Learns symptom relationships via co-occurrence networks and Node2Vec embeddings.
 - **Production-Ready API**: FastAPI based inference service with input validation and health checks.
-- **Explainable AI (XAI)**: Feature importance analysis to identify top predictive symptoms.
+- **Explainable AI (XAI)**: Feature importance analysis and SHAP values to identify top predictive symptoms.
 - **Robust Preprocessing**: End-to-end `sklearn` pipeline handling imputation and feature engineering.
 
 ## 📂 Project Structure
@@ -14,12 +15,14 @@ A high-performance multiclass classification system designed to predict final di
 ├── Final_dataset.csv       # Training dataset (260k+ rows)
 ├── app.py                   # FastAPI Application
 ├── train_optuna.py          # Main training script (with subsampling & GPU support)
+├── symptom_relationships.py # Co-occurrence analysis and network visualization
+├── graph_features.py        # Node2Vec embedding generation and pipeline
 ├── pipeline.py              # Modular data processing and EDA utilities
 ├── test_app.py              # Sample client for API testing
 ├── requirements.txt         # Project dependencies
 ├── walkthrough.md           # Detailed results and performance analysis
-├── models/                  # (Generated) Directory for model checkpoints
-└── eda_outputs/             # (Generated) Visualizations and SHAP/Importance plots
+├── best_pipeline.joblib     # (Generated) Trained ensemble pipeline
+└── eda_outputs/             # (Generated) Visualizations, Network Plots, and SHAP
 ```
 
 ## 🛠️ Installation
@@ -34,23 +37,30 @@ A high-performance multiclass classification system designed to predict final di
    ```powershell
    pip install -r requirements.txt
    ```
-   *Note: For GPU support, ensures you have the correct PyTorch CUDA build installed.*
+   *Note: Ensure you have the correct PyTorch CUDA build for GPU support.*
 
 ## 📈 Usage
 
-### 1. Training the Model
-To re-train the model (currently set to a stable 20k row subsample setup):
-```bash
-python train_optuna.py
-```
-This generates `best_pipeline.joblib`, `label_encoder.joblib`, and `feature_names.joblib`.
+### 1. Training & Analysis
+- **Graph Analysis**: Generate symptom co-occurrence matrix and network diagrams:
+  ```bash
+  python symptom_relationships.py
+  ```
+- **Feature Engineering**: Generate Node2Vec symptom embeddings:
+  ```bash
+  python graph_features.py
+  ```
+- **Model Training**: Re-train the ensemble model:
+  ```bash
+  python train_optuna.py
+  ```
 
 ### 2. Running the API
 Start the production server:
 ```bash
-python -m uvicorn app:app --reload
+python app.py
 ```
-The API will be available at `http://127.0.0.1:8000`.
+*(Uses Uvicorn to host the API on port 8000).*
 
 ### 3. Testing Inference
 With the server running, execute:
@@ -61,7 +71,7 @@ python test_app.py
 ## 📊 Performance Summary
 - **Classification Accuracy**: ~80%
 - **Target Count**: 669 unique diseases
-- **Input Features**: 500+ binary symptom indicators
+- **Input Features**: 500+ binary symptom indicators + 32D Node2Vec Embeddings (Extracted via pipeline).
 
 ## ⚖️ License
 Internal Project - Senior Machine Learning Engineering Assessment.

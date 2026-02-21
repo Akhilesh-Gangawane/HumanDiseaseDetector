@@ -1,0 +1,80 @@
+================================================================================
+SYSTEM ARCHITECTURE & TECHNICAL APPROACH: DISEASE PREDICTION SYSTEM
+================================================================================
+
+1. PROJECT OBJECTIVE
+--------------------
+To develop a high-performance, production-ready multiclass classification 
+system capable of predicting 669 unique diseases from 500+ binary symptom 
+features. The architecture is designed for scalability, low-latency inference, 
+and explainability.
+
+2. DATA ARCHITECTURE & PREPROCESSING
+------------------------------------
+* Dataset: Final_dataset.csv (614 MB, ~260,000 observations).
+* Target Variable: 'prognosis' (669 classes, high cardinality).
+* Features: Binary flags representing presence/absence of clinical symptoms.
+* Handling Large Data: 
+  - Subsampling implemented for hyperparameter tuning and SHAP analysis to 
+    maintain stability on limited memory environments (NVIDIA RTX 4050 mobile).
+  - Chunked processing (chunksize=50,000) for calculating co-occurrence 
+    matrices and network visualizations.
+
+3. ADVANCED FEATURE ENGINEERING (GRAPH-BASED)
+---------------------------------------------
+The system employs a Graph Representation Learning approach to capture latent 
+relationships between symptoms:
+* Co-occurrence Matrix: Calculated via (Features.T @ Features) to quantify 
+  symptom-symptom proximity.
+* Graph Construction: A weighted undirected graph where Nodes = Symptoms and 
+  Edges = Weighted co-occurrence frequency.
+* Node2Vec Embeddings:
+  - Algorithm: Node2Vec (Walk-based learning).
+  - Hyperparameters: 32 dimensions, 30 walk length, 200 walks per node.
+  - Rationale: Converts binary features into 32-dimensional dense vectors 
+    capturing the "contextual" medical profile of the patient.
+* Aggregation: Patient symptoms are converted to a single 32D vector via Mean 
+  Pooling of individual symptom embeddings.
+
+4. MODELING STRATEGY: ENSEMBLE CLASSIFICATION
+---------------------------------------------
+A Heterogeneous Ensemble approach is used to maximize predictive power:
+* Base Models: 
+  - XGBoost: Optimized with CUDA device support (`device='cuda'`, 
+    `tree_method='hist'`) for high-speed gradient boosting.
+  - LightGBM: Balanced class weights for handling minority diseases.
+  - Random Forest: Used for baseline stability.
+* Meta-Model (Voting): A soft-voting classifier that averages probability 
+  distributions across base models to reduce variance.
+
+5. PRODUCTION INFERENCE PIPELINE (FastAPI)
+------------------------------------------
+* Framework: FastAPI (Uvicorn server).
+* Data Processing: Encapsulated in scikit-learn 'Pipeline' objects to prevent 
+  feature leakage and ensure strict dtype (float64) consistency.
+* Dtype Strictness: Explicit casting to float64 for all input tensors to match 
+  serialized SimpleImputer statistics (scikit-learn 1.8.0 requirement).
+* Endpoints:
+  - POST /predict: Accepts symptom dictionary -> Feature Vector -> Ensemble Prediction.
+  - GET /health: Monitoring artifact availability and model state.
+
+6. EXPLAINABILITY (XAI)
+-----------------------
+* SHAP (Lundberg et al.): Utilizes SHAP TreeExplainer for additive feature 
+  attribution.
+* Custom Multi-class Handling: Implemented logic to reshape 3D SHAP outputs 
+  from XGBoost (samples, features, classes) into list formats compatible with 
+  Scikit-Learn visualization standards.
+
+7. PERFORMANCE & OPTIMIZATION
+-----------------------------
+* Training Speed: GPU acceleration reduces training time on the full dataset 
+  from hours to minutes.
+* Memory Management: Force-reinstallation of NumPy 2.4.2 and Pandas 3.0.1 
+  ensures compatibility with Python 3.13's binary structure on Windows.
+* Version Locking: Controlled environment via scikit-learn 1.8.0 to ensure 
+  reproducible joblib unpickling.
+
+================================================================================
+EOF - TECHNICAL_APPROACH.txt
+================================================================================

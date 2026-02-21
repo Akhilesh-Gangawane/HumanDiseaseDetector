@@ -117,7 +117,12 @@ def main():
     
     # Handle SHAP output format
     if isinstance(shap_values, list):
-        shap_values_to_plot = shap_values[0]
+        shap_values_to_plot = shap_values
+    elif isinstance(shap_values, np.ndarray) and len(shap_values.shape) == 3:
+        # Newer SHAP/XGBoost returns (samples, features, classes)
+        # summary_plot expects a list of (samples, features) for multiclass
+        print(f"Converting 3D SHAP values {shap_values.shape} to list for multiclass plot...")
+        shap_values_to_plot = [shap_values[:, :, i] for i in range(shap_values.shape[2])]
     else:
         shap_values_to_plot = shap_values
     
