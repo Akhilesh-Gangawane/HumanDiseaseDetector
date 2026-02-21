@@ -41,3 +41,8 @@ Use the provided [test_app.py](file:///d:/Projects/EDI_two/test_app.py) script:
 - **Probability Calibration**: Improve confidence scores for rare diseases.
 - **Hierarchical Classification**: Group diseases into broad categories first to improve macro performance.
 - **Model Versioning**: Use DVC or MLflow to track model iterations.
+
+
+```bash
+dir *.joblib
+```

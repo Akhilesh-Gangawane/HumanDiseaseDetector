@@ -36,12 +36,12 @@ def predict(request: PredictionRequest):
     symptoms_dict = request.symptoms
     
     # Create input DataFrame with all zeros initially for all expected features
-    input_data = {feat: [0] for feat in feature_names}
+    input_data = {feat: [0.0] for feat in feature_names}
     
     # Update with provided symptoms
     for symptom, value in symptoms_dict.items():
         if symptom in input_data:
-            input_data[symptom] = [value]
+            input_data[symptom] = [float(value)]
             
     df_input = pd.DataFrame(input_data).astype(float)
     
@@ -63,3 +63,7 @@ def predict(request: PredictionRequest):
 @app.get("/health")
 def health():
     return {"status": "healthy", "model_loaded": pipeline is not None}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

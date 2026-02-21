@@ -4,10 +4,9 @@ import json
 def test_inference():
     # Example mock symptoms
     symptoms = {
-        "itching": 1,
-        "skin_rash": 1,
-        "nodal_skin_eruptions": 1,
-        "continuous_sneezing": 0
+        "ulcers_on_tongue":1,
+        "continuous_sneezing": 0,
+        "restlessness":1
     }
     
     url = "http://localhost:8000/predict"

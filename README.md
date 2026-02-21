@@ -4,7 +4,7 @@ A high-performance multiclass classification system designed to predict final di
 
 ## 🚀 Features
 - **Multi-Model Ensemble**: Combines the strengths of XGBoost, LightGBM, and Random Forest for robust generalization.
-- **GPU Acceleration**: Optimized for NVIDIA RTX 4050 using `tree_method='hist'` and CUDA support.
+- **GPU Acceleration**: Optimized for NVIDIA GPU using `tree_method='hist'` and CUDA support.
 - **Production-Ready API**: FastAPI based inference service with input validation and health checks.
 - **Explainable AI (XAI)**: Feature importance analysis to identify top predictive symptoms.
 - **Robust Preprocessing**: End-to-end `sklearn` pipeline handling imputation and feature engineering.
