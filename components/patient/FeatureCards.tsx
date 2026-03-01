@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Brain, MessageSquare, X } from 'lucide-react';
 import PredictionForm from './PredictionForm';
 import ChatAssistant from './ChatAssistant';
-import { DNAPattern } from '@/components/ui/BackgroundPatterns';
+import { BrainAIBackground, SecurityGridBackground } from './CardBackgrounds';
 
 export default function FeatureCards() {
   const [showPrediction, setShowPrediction] = useState(false);
@@ -13,12 +13,7 @@ export default function FeatureCards() {
   return (
     <>
       {/* Feature Cards Grid */}
-      <section className="relative py-20 bg-white/50 overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 text-teal-500">
-          <DNAPattern />
-        </div>
-        
+      <section className="relative py-20 overflow-hidden">
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 gap-8">
             {/* Disease Prediction Card */}

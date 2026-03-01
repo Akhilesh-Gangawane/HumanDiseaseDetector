@@ -8,6 +8,7 @@ import ContactSection from '@/components/landing/ContactSection'
 import CTASection from '@/components/landing/CTASection'
 import Footer from '@/components/landing/Footer'
 import ScrollProgress from '@/components/ui/ScrollProgress'
+import AnimatedBackground from '@/components/ui/AnimatedBackground'
 
 export default function Home() {
   return (
@@ -15,6 +16,9 @@ export default function Home() {
       <ScrollProgress />
       <Navbar />
       <main className="relative">
+        {/* neural‑network style animated canvas background (blue/white) */}
+        <AnimatedBackground fullScreen={false} />
+
         <HeroVideo />
         <FeaturesSection />
         <HowItWorks />
