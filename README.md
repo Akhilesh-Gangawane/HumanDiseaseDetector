@@ -1,79 +1,179 @@
-# Production-Ready Disease Prediction System
+# Dhanvantari AI - Healthcare Platform Frontend
 
-A high-performance multiclass classification system designed to predict final disease outcomes from binary symptom features. The system utilizes a multi-model ensemble (XGBoost, LightGBM, Random Forest) with GPU acceleration and serves predictions via a FastAPI service.
+A premium, cinematic healthcare landing page featuring scroll-driven animations, canvas-based image sequences, and smooth interactions with a beautiful sky blue and white theme.
 
-## 🚀 Features
-- **Multi-Model Ensemble**: Combines the strengths of XGBoost, LightGBM, and Random Forest for robust generalization.
-- **GPU Acceleration**: Optimized for NVIDIA GPU using `tree_method='hist'` and CUDA support.
-- **Graph-Based Feature Engineering**: Learns symptom relationships via co-occurrence networks and Node2Vec embeddings.
-- **Production-Ready API**: FastAPI based inference service with input validation and health checks.
-- **Explainable AI (XAI)**: Feature importance analysis and SHAP values to identify top predictive symptoms.
-- **Robust Preprocessing**: End-to-end `sklearn` pipeline handling imputation and feature engineering.
+## ✨ Features
 
-## 📂 Project Structure
-```text
-├── Final_dataset.csv       # Training dataset (260k+ rows)
-├── app.py                   # FastAPI Application
-├── train_optuna.py          # Main training script (with augmented features & GPU)
-├── symptom_relationships.py # Co-occurrence analysis and network visualization
-├── graph_features.py        # Node2Vec embedding generation
-├── pipeline.py              # Core logic & custom Graph Transformer (Node2Vec)
-├── test_app.py              # Sample client for API testing
-├── requirements.txt         # Project dependencies (Updated)
-├── walkthrough.md           # Detailed results and performance analysis
-├── TECHNICAL_APPROACH.txt   # [Local Only] Hyper-detailed system architecture
-├── best_pipeline.joblib     # (Generated) Trained ensemble pipeline
-└── eda_outputs/             # (Generated) Visualizations, Network Plots, and SHAP
-```
+### Animated Feature Cards
+- **AI Diagnosis** - Pulsing Neural Nodes with connecting lines suggesting "thinking"
+- **24/7 Monitoring** - Smooth Sine Wave (EKG heartbeat line)
+- **Expert Network** - Soft Bokeh Particles (floating light orbs)
+- **Secure & Private** - Digital Shield/Grid with scanning line
+- **Health Analytics** - Growing Data Pillars (bars that rise and fall)
+- **Mobile Access** - Floating App UI Glass (3D moving rectangles)
 
-## 🛠️ Installation
+### Page Sections
+- Responsive navigation bar with "Dhanvantari AI" branding
+- Full-screen hero video background with animated text
+- Interactive features section with animated backgrounds
+- How It Works section with 4-step process
+- Canvas-based scroll animation (128 frames)
+- About section with statistics
+- Call-to-action section with metrics
+- Footer with links and social media
+- Smooth scroll with Lenis
+- Framer Motion animations throughout
 
-1. **Clone the repository** and navigate to the project root.
-2. **Set up a virtual environment**:
-   ```powershell
-   python -m venv venv
-   .\venv\Scripts\Activate.ps1
-   ```
-3. **Install dependencies**:
-   ```powershell
-   pip install -r requirements.txt
-   ```
-   *Note: Ensure you have the correct PyTorch CUDA build for GPU support (NVIDIA RTX 4050).*
+## 🛠️ Tech Stack
 
-## 📈 Usage
+- **Next.js 15** - React framework with App Router
+- **TypeScript** - Type-safe development
+- **Tailwind CSS** - Utility-first styling
+- **Framer Motion** - Animation library
+- **Lenis** - Smooth scroll library
 
-### 1. Training & Analysis
-- **Graph Analysis**: Generate symptom co-occurrence matrix and network diagrams:
-  ```bash
-  python symptom_relationships.py
-  ```
-- **Feature Engineering**: Generate Node2Vec symptom embeddings:
-  ```bash
-  python graph_features.py
-  ```
-- **Model Training**: Re-train the high-accuracy ensemble model:
-  ```bash
-  python train_optuna.py
-  ```
+## 🚀 Getting Started
 
-### 2. Running the API
-Start the production server:
+### Prerequisites
+- Node.js 18+ 
+- npm or yarn
+
+### Installation
+
+1. Clone the repository:
 ```bash
-python app.py
+git clone https://github.com/Akhilesh-Gangawane/HumanDiseaseDetector.git
+cd HumanDiseaseDetector
+git checkout Frontend-V-1
 ```
-*(Uses Uvicorn to host the API on port 8000).*
 
-### 3. Testing Inference
-With the server running, execute:
+2. Install dependencies:
 ```bash
-python test_app.py
+npm install
 ```
 
-## 📊 Performance Summary
-- **Overall Accuracy**: ~80%
-- **Macro F1 Score**: **0.76** (Improved from 0.70 via Graph Integration)
-- **Target Count**: 669 unique diseases
-- **Input Features**: 500+ binary symptom indicators + 32D Node2Vec Embeddings (Integrated via Pipeline).
+3. Run the development server:
+```bash
+npm run dev
+```
 
-## ⚖️ License
-Internal Project - Senior Machine Learning Engineering Assessment.
+4. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+## 📁 Project Structure
+
+```
+├── app/
+│   ├── dashboard/          # Doctor dashboard pages
+│   ├── patient-dashboard/  # Patient dashboard pages
+│   ├── login/              # Login page
+│   ├── layout.tsx          # Root layout with Lenis provider
+│   ├── page.tsx            # Main landing page
+│   └── globals.css         # Global styles
+├── components/
+│   ├── landing/            # Landing page components
+│   │   ├── Navbar.tsx
+│   │   ├── HeroVideo.tsx
+│   │   ├── FeaturesSection.tsx
+│   │   ├── HowItWorks.tsx
+│   │   ├── HealthScroll.tsx
+│   │   ├── AboutSection.tsx
+│   │   ├── ContactSection.tsx
+│   │   ├── CTASection.tsx
+│   │   └── Footer.tsx
+│   ├── doctor/             # Doctor dashboard components
+│   ├── patient/            # Patient dashboard components
+│   ├── ui/                 # Reusable UI components
+│   │   ├── FeatureBackgrounds.tsx  # Animated backgrounds
+│   │   ├── GlassCard.tsx
+│   │   ├── GradientButton.tsx
+│   │   └── ScrollProgress.tsx
+│   ├── animations/         # Animation components
+│   └── LenisProvider.tsx   # Smooth scroll provider
+├── hooks/
+│   ├── useImagePreloader.ts
+│   └── usePageTransition.ts
+├── lib/
+│   ├── config/
+│   ├── constants/
+│   ├── data/
+│   └── types/
+└── public/
+    ├── herosection.mp4     # Hero video
+    ├── logo.png
+    └── scroll-sequence/    # 128 frame images for scroll animation
+```
+
+## 🎨 Key Components
+
+### FeatureBackgrounds.tsx
+Contains all animated SVG backgrounds for feature cards:
+- `NeuralNetworkBg` - Pulsing nodes with connections
+- `EKGWaveBg` - Flowing heartbeat wave
+- `NetworkMapBg` - Floating bokeh particles
+- `LockSecurityBg` - Scanning grid with hexagons
+- `AnalyticsChartBg` - Growing bar chart
+- `MobileAppBg` - Floating glass UI elements
+
+### HealthScroll.tsx
+Canvas-based scroll animation that plays through 128 frames as user scrolls.
+
+### LenisProvider.tsx
+Provides smooth scrolling experience across the entire application.
+
+## 🏗️ Build for Production
+
+```bash
+npm run build
+npm start
+```
+
+## 🌐 Deployment
+
+The application can be deployed to:
+- **Vercel** (Recommended for Next.js)
+- **Netlify**
+- **AWS Amplify**
+- Any Node.js hosting service
+
+### Deploy to Vercel
+```bash
+npm install -g vercel
+vercel
+```
+
+## 📱 Responsive Design
+
+The application is fully responsive and optimized for:
+- Desktop (1920px+)
+- Laptop (1024px - 1919px)
+- Tablet (768px - 1023px)
+- Mobile (320px - 767px)
+
+## ⚡ Performance Optimizations
+
+- Image preloading with progress indicator
+- Canvas rendering optimization
+- Smooth 60fps scroll animations
+- Lazy loading for off-screen components
+- Optimized bundle size with code splitting
+
+## 🎯 Future Enhancements
+
+- Integration with backend API for disease prediction
+- User authentication and authorization
+- Patient and doctor dashboard functionality
+- Real-time chat with healthcare professionals
+- Medical records management
+- Appointment scheduling system
+
+## 📄 License
+
+Internal Project - Healthcare AI Platform
+
+## 👥 Contributors
+
+Akhilesh Gangawane
+
+---
+
+**Note:** This is the frontend repository. The backend API with ML models is maintained separately.
