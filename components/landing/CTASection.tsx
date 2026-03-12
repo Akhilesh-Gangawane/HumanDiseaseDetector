@@ -90,17 +90,17 @@ export default function CTASection() {
             transition={{ duration: 0.8, delay: 0.6 }}
             className="mt-12 flex items-center justify-center gap-8 text-white"
           >
-            <div className="text-center">
+            <div className="text-center backdrop-blur-lg bg-white/10 p-4 rounded-2xl hover:bg-white/20 hover:scale-105 transition-all duration-300">
               <div className="text-3xl font-bold">500+</div>
               <div className="text-sky-100">Doctors</div>
             </div>
             <div className="w-px h-12 bg-sky-400" />
-            <div className="text-center">
+            <div className="text-center backdrop-blur-lg bg-white/10 p-4 rounded-2xl hover:bg-white/20 hover:scale-105 transition-all duration-300">
               <div className="text-3xl font-bold">10K+</div>
               <div className="text-sky-100">Medicines</div>
             </div>
             <div className="w-px h-12 bg-sky-400" />
-            <div className="text-center">
+            <div className="text-center backdrop-blur-lg bg-white/10 p-4 rounded-2xl hover:bg-white/20 hover:scale-105 transition-all duration-300">
               <div className="text-3xl font-bold">24/7</div>
               <div className="text-sky-100">Support</div>
             </div>

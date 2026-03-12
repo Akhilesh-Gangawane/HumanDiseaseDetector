@@ -16,26 +16,26 @@ function ServiceCard({ icon, title, features, backgroundImage, onClick }: Servic
   return (
     <div 
       onClick={onClick}
-      className={`group rounded-3xl shadow-lg border border-white/20 p-8 hover:shadow-2xl hover:scale-105 transition-all duration-300 relative overflow-hidden ${onClick ? 'cursor-pointer' : ''}`}
+      className={`group rounded-3xl shadow-lg border border-white/30 p-8 hover:shadow-2xl hover:scale-105 transition-all duration-500 relative overflow-hidden backdrop-blur-xl bg-white/60 hover:bg-white/80 ${onClick ? 'cursor-pointer' : ''}`}
     >
       {/* Background Image */}
       {backgroundImage && (
         <div 
-          className="absolute inset-0 bg-cover bg-center"
+          className="absolute inset-0 bg-cover bg-center opacity-30 group-hover:opacity-50 transition-opacity duration-500"
           style={{ backgroundImage: `url(${backgroundImage})` }}
         ></div>
       )}
-      {/* Overlay for readability - no blur */}
-      <div className="absolute inset-0 bg-white/40"></div>
+      {/* Overlay for readability */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-blue-50/40 group-hover:from-white/60 group-hover:to-blue-50/60 transition-all duration-500"></div>
       
-      <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-teal-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 relative z-10">
+      <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-teal-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 relative z-10 shadow-lg group-hover:shadow-2xl">
         {icon}
       </div>
-      <h3 className="text-2xl font-bold text-gray-800 mb-4 relative z-10">{title}</h3>
+      <h3 className="text-2xl font-bold text-gray-800 mb-4 relative z-10 group-hover:text-blue-600 transition-colors duration-300">{title}</h3>
       <ul className="space-y-3 relative z-10">
         {features.map((feature, idx) => (
-          <li key={idx} className="flex items-center space-x-2 text-gray-600">
-            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+          <li key={idx} className="flex items-center space-x-2 text-gray-600 group-hover:text-gray-800 transition-colors duration-300">
+            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full group-hover:scale-150 transition-transform duration-300"></div>
             <span>{feature}</span>
           </li>
         ))}

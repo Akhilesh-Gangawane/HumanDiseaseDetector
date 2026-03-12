@@ -32,8 +32,10 @@ export default function ChatAssistant() {
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [apiUrl] = useState('http://localhost:8000');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -42,6 +44,55 @@ export default function ChatAssistant() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Initialize speech recognition
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.interimResults = false;
+        recognitionRef.current.lang = 'en-US';
+
+        recognitionRef.current.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript;
+          setInput(transcript);
+          setIsListening(false);
+        };
+
+        recognitionRef.current.onerror = (event: any) => {
+          console.error('Speech recognition error:', event.error);
+          setIsListening(false);
+        };
+
+        recognitionRef.current.onend = () => {
+          setIsListening(false);
+        };
+      }
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
+
+  const toggleVoiceInput = () => {
+    if (!recognitionRef.current) {
+      alert('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
+  };
 
   // Extract symptoms from user message
   const extractSymptoms = (text: string): string[] => {
@@ -176,7 +227,7 @@ export default function ChatAssistant() {
   };
 
   return (
-    <div className="backdrop-blur-md bg-white/70 rounded-3xl shadow-xl border border-white/20 p-8 h-full flex flex-col">
+    <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-8 h-full flex flex-col">
       <div className="flex items-center space-x-3 mb-6">
         <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-blue-500 rounded-lg flex items-center justify-center">
           <Bot className="w-5 h-5 text-white" />
@@ -209,7 +260,7 @@ export default function ChatAssistant() {
               <div className={`px-4 py-3 rounded-2xl ${
                 message.sender === 'user'
                   ? 'bg-gradient-to-r from-blue-500 to-teal-500 text-white'
-                  : 'bg-white/80 text-gray-800 border border-gray-200'
+                  : 'bg-gray-50 text-gray-800 border border-gray-200'
               }`}>
                 <p className="text-sm leading-relaxed whitespace-pre-line">{message.text}</p>
                 
@@ -251,7 +302,7 @@ export default function ChatAssistant() {
               <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-teal-500 to-blue-500">
                 <Bot className="w-4 h-4 text-white" />
               </div>
-              <div className="px-4 py-3 rounded-2xl bg-white/80 border border-gray-200">
+              <div className="px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200">
                 <div className="flex space-x-2">
                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
@@ -273,15 +324,20 @@ export default function ChatAssistant() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Describe your symptoms or ask a question..."
-            className="w-full px-4 py-3 pr-12 bg-white/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            className="w-full px-4 py-3 pr-12 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           />
           <button 
             type="button"
-            className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+            onClick={toggleVoiceInput}
+            className={`absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all ${
+              isListening 
+                ? 'bg-red-100 text-red-600 animate-pulse' 
+                : 'hover:bg-gray-100 text-gray-500'
+            }`}
             aria-label="Voice input"
-            title="Voice input"
+            title={isListening ? 'Stop listening' : 'Start voice input'}
           >
-            <Mic className="w-5 h-5 text-gray-500" />
+            <Mic className={`w-5 h-5 ${isListening ? 'animate-pulse' : ''}`} />
           </button>
         </div>
         <button

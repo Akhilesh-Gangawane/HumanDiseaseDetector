@@ -131,13 +131,13 @@ export default function PredictionForm({ onClose }: PredictionFormProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-4xl max-h-[90vh] backdrop-blur-xl bg-gradient-to-br from-white/95 via-blue-50/95 to-teal-50/95 rounded-3xl shadow-2xl border border-white/30 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 animate-fade-in">
+      <div className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
         {/* Close Button */}
         {onClose && (
           <button
             onClick={onClose}
-            className="absolute top-6 right-6 z-10 p-2 bg-white/90 hover:bg-white rounded-full shadow-lg transition-colors"
+            className="absolute top-6 right-6 z-10 p-2 bg-gray-100 hover:bg-gray-200 rounded-full shadow-lg transition-colors"
             aria-label="Close"
           >
             <X className="w-6 h-6 text-gray-700" />
@@ -145,9 +145,9 @@ export default function PredictionForm({ onClose }: PredictionFormProps) {
         )}
 
         {/* Animated Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 left-0 w-96 h-96 bg-blue-400 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-teal-400 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-teal-50 opacity-50">
+          <div className="absolute top-0 left-0 w-96 h-96 bg-blue-200 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-0 right-0 w-96 h-96 bg-teal-200 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
         </div>
 
         <div className="relative h-full max-h-[90vh] overflow-y-auto p-8 md:p-12">
@@ -174,7 +174,7 @@ export default function PredictionForm({ onClose }: PredictionFormProps) {
             value={apiUrl}
             onChange={(e) => setApiUrl(e.target.value)}
             placeholder="http://localhost:8000"
-            className="w-full px-4 py-3 bg-white/70 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm shadow-sm"
+            className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm shadow-sm"
           />
         </div>
 
@@ -189,10 +189,10 @@ export default function PredictionForm({ onClose }: PredictionFormProps) {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Type to search symptoms..."
-              className="w-full px-5 py-4 bg-white/70 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm text-base"
+              className="w-full px-5 py-4 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm text-base"
             />
             {searchTerm && filteredSymptoms.length > 0 && (
-              <div className="absolute z-10 w-full mt-2 bg-white/95 backdrop-blur-md border-2 border-gray-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto animate-fade-in">
+              <div className="absolute z-10 w-full mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto animate-fade-in">
                 {filteredSymptoms.slice(0, 10).map((symptom) => (
                   <button
                     key={symptom}
@@ -214,7 +214,7 @@ export default function PredictionForm({ onClose }: PredictionFormProps) {
             <label className="block text-sm font-semibold text-gray-700 mb-3">
               Selected Symptoms ({selectedSymptoms.length})
             </label>
-            <div className="flex flex-wrap gap-2 p-4 bg-white/50 rounded-xl border-2 border-blue-100">
+            <div className="flex flex-wrap gap-2 p-4 bg-blue-50 rounded-xl border-2 border-blue-100">
               {selectedSymptoms.map((symptom, index) => (
                 <span
                   key={symptom}
@@ -271,12 +271,12 @@ export default function PredictionForm({ onClose }: PredictionFormProps) {
             </div>
             
             <div className="space-y-5">
-              <div className="p-5 bg-white/70 rounded-xl border border-blue-100">
+              <div className="p-5 bg-white rounded-xl border border-blue-100 shadow-sm">
                 <span className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Predicted Disease:</span>
                 <p className="text-2xl md:text-3xl font-bold text-blue-600 mt-2">{prediction.prediction}</p>
               </div>
               
-              <div className="p-5 bg-white/70 rounded-xl border border-blue-100">
+              <div className="p-5 bg-white rounded-xl border border-blue-100 shadow-sm">
                 <span className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Confidence Level:</span>
                 <div className="flex items-center space-x-4 mt-3">
                   <div className="flex-1 h-3 bg-gray-200 rounded-full overflow-hidden shadow-inner">

@@ -1,11 +1,9 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Loader2, AlertCircle, CheckCircle2, X, Stethoscope, ArrowRight, ArrowLeft, Bot, Activity } from 'lucide-react';
+import { Search, Loader2, AlertCircle, CheckCircle2, X, Stethoscope, ArrowRight, ArrowLeft, Activity, Sparkles } from 'lucide-react';
 import PatientNavbar from '@/components/patient/PatientNavbar';
-import NeuralNetworkContainer from '@/components/ui/NeuralNetworkContainer';
-import Footer from '@/components/patient/Footer';
 
 // Common symptoms list
 const COMMON_SYMPTOMS = [
@@ -52,25 +50,6 @@ export default function DiseasePredictionPage() {
   const [prediction, setPrediction] = useState<PredictionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [apiUrl, setApiUrl] = useState('http://localhost:8000');
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const heroRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (heroRef.current) {
-        const rect = heroRef.current.getBoundingClientRect();
-        const x = (e.clientX - rect.left) / rect.width;
-        const y = (e.clientY - rect.top) / rect.height;
-        setMousePosition({ x, y });
-      }
-    };
-
-    const heroElement = heroRef.current;
-    if (heroElement) {
-      heroElement.addEventListener('mousemove', handleMouseMove);
-      return () => heroElement.removeEventListener('mousemove', handleMouseMove);
-    }
-  }, []);
 
   const filteredSymptoms = COMMON_SYMPTOMS.filter(symptom =>
     symptom.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -146,159 +125,79 @@ export default function DiseasePredictionPage() {
     router.push('/consult-doctor');
   };
 
+  const handleReset = () => {
+    setSelectedSymptoms([]);
+    setPrediction(null);
+    setError(null);
+    setSearchTerm('');
+  };
+
   return (
-    <NeuralNetworkContainer className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-white">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-teal-50">
       <PatientNavbar />
       
-      {/* Hero Section */}
-      <div 
-        ref={heroRef}
-        className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-teal-600 pt-32 pb-20"
-      >
-        {/* Animated background orbs */}
-        <div 
-          className="absolute w-96 h-96 bg-blue-400/30 rounded-full blur-3xl transition-all duration-500 ease-out"
-          style={{
-            left: `${mousePosition.x * 100}%`,
-            top: `${mousePosition.y * 100}%`,
-            transform: `translate(-50%, -50%) scale(${1 + mousePosition.y * 0.3})`,
-          }}
-        />
-        <div 
-          className="absolute w-80 h-80 bg-purple-400/20 rounded-full blur-3xl transition-all duration-700 ease-out"
-          style={{
-            left: `${(1 - mousePosition.x) * 100}%`,
-            top: `${(1 - mousePosition.y) * 100}%`,
-            transform: `translate(-50%, -50%) scale(${1 + mousePosition.x * 0.3})`,
-          }}
-        />
-        
-        {/* Floating icons */}
-        <div 
-          className="absolute transition-all duration-500 ease-out opacity-20"
-          style={{
-            left: `${20 + mousePosition.x * 10}%`,
-            top: `${30 + mousePosition.y * 10}%`,
-            transform: `rotate(${mousePosition.x * 20}deg)`,
-          }}
-        >
-          <Activity className="w-16 h-16 text-white" />
-        </div>
-        <div 
-          className="absolute transition-all duration-700 ease-out opacity-20"
-          style={{
-            right: `${15 + mousePosition.x * 10}%`,
-            top: `${40 + mousePosition.y * 15}%`,
-            transform: `rotate(${-mousePosition.y * 20}deg)`,
-          }}
-        >
-          <Bot className="w-20 h-20 text-white" />
-        </div>
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24">
+        {/* Header */}
+        <div className="mb-8">
+          <button
+            onClick={() => router.push('/patient-dashboard')}
+            className="mb-4 flex items-center space-x-2 px-4 py-2 bg-white hover:bg-gray-50 rounded-xl shadow-sm border border-gray-200 transition-all duration-300 group"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-600 group-hover:text-blue-600 transition-colors" />
+            <span className="text-gray-700 font-medium group-hover:text-blue-600 transition-colors">Back to Dashboard</span>
+          </button>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center">
-            <h1 
-              className="text-5xl md:text-6xl font-bold text-white mb-6 transition-transform duration-300"
-              style={{
-                transform: `translateY(${mousePosition.y * -10}px)`,
-              }}
-            >
-              AI Disease Prediction
-              <span className="block text-blue-200 mt-2">& Medical Assistant</span>
-            </h1>
-            <p 
-              className="text-xl text-blue-100 mb-8 max-w-3xl mx-auto transition-transform duration-500"
-              style={{
-                transform: `translateY(${mousePosition.y * -5}px)`,
-              }}
-            >
-              Advanced AI-powered disease prediction based on your symptoms. 
-              Get instant analysis and connect with doctors for professional care.
-            </p>
-            <div className="flex flex-wrap justify-center gap-4 text-white">
-              <div 
-                className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-6 py-3 rounded-full transition-all duration-300 hover:bg-white/20"
-                style={{
-                  transform: `translateX(${mousePosition.x * -10}px)`,
-                }}
-              >
-                <Activity className="w-5 h-5" />
-                <span className="font-medium">AI-Powered Analysis</span>
+          <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-8 hover:shadow-xl transition-all duration-500">
+            <div className="flex items-center space-x-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-teal-500 rounded-2xl flex items-center justify-center shadow-lg">
+                <Sparkles className="w-8 h-8 text-white" />
               </div>
-              <div 
-                className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-6 py-3 rounded-full transition-all duration-400 hover:bg-white/20"
-              >
-                <Bot className="w-5 h-5" />
-                <span className="font-medium">Instant Results</span>
-              </div>
-              <div 
-                className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-6 py-3 rounded-full transition-all duration-500 hover:bg-white/20"
-                style={{
-                  transform: `translateX(${mousePosition.x * 10}px)`,
-                }}
-              >
-                <Stethoscope className="w-5 h-5" />
-                <span className="font-medium">Expert Consultation</span>
+              <div>
+                <h1 className="text-3xl md:text-4xl font-bold text-gray-800">AI Disease Prediction</h1>
+                <p className="text-gray-600 mt-1">Select your symptoms and get instant AI-powered analysis</p>
               </div>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Back Button */}
-        <button
-          onClick={() => router.push('/patient-dashboard')}
-          className="mb-6 flex items-center space-x-2 px-4 py-2 bg-white hover:bg-gray-50 rounded-xl shadow-sm border border-gray-200 transition-all duration-300 group"
-        >
-          <ArrowLeft className="w-5 h-5 text-gray-600 group-hover:text-blue-600 transition-colors" />
-          <span className="text-gray-700 font-medium group-hover:text-blue-600 transition-colors">Back to Dashboard</span>
-        </button>
 
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Prediction Form */}
-          <div className="backdrop-blur-xl bg-white/95 rounded-3xl shadow-2xl border border-white/30 p-8">
-            <div className="flex items-center space-x-4 mb-6">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-teal-500 rounded-2xl flex items-center justify-center shadow-lg">
-                <Search className="w-6 h-6 text-white" />
+          <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-8 hover:shadow-2xl transition-all duration-500">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-teal-500 rounded-xl flex items-center justify-center shadow-md">
+                  <Search className="w-5 h-5 text-white" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-800">Select Symptoms</h2>
               </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800">Symptom Analysis</h2>
-                <p className="text-gray-600 text-sm">Select your symptoms for AI prediction</p>
-              </div>
+              {selectedSymptoms.length > 0 && (
+                <button
+                  onClick={handleReset}
+                  className="text-sm text-gray-600 hover:text-red-600 font-medium transition-colors"
+                >
+                  Clear All
+                </button>
+              )}
             </div>
 
             <div className="space-y-6">
-              {/* API URL */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  API URL (optional)
-                </label>
-                <input
-                  type="text"
-                  value={apiUrl}
-                  onChange={(e) => setApiUrl(e.target.value)}
-                  placeholder="http://localhost:8000"
-                  className="w-full px-4 py-3 bg-white/70 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm shadow-sm"
-                />
-              </div>
-
               {/* Symptom Search */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Search Symptoms
                 </label>
                 <div className="relative">
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder="Type to search symptoms..."
-                    className="w-full px-5 py-4 bg-white/70 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm"
+                    className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm"
                   />
                   {searchTerm && filteredSymptoms.length > 0 && (
-                    <div className="absolute z-10 w-full mt-2 bg-white/95 backdrop-blur-md border-2 border-gray-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
+                    <div className="absolute z-10 w-full mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
                       {filteredSymptoms.slice(0, 10).map((symptom) => (
                         <button
                           key={symptom}
@@ -315,35 +214,39 @@ export default function DiseasePredictionPage() {
               </div>
 
               {/* Selected Symptoms */}
-              {selectedSymptoms.length > 0 && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    Selected Symptoms ({selectedSymptoms.length})
-                  </label>
-                  <div className="flex flex-wrap gap-2 p-4 bg-white/50 rounded-xl border-2 border-blue-100 max-h-48 overflow-y-auto">
-                    {selectedSymptoms.map((symptom) => (
-                      <span
-                        key={symptom}
-                        className="inline-flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-teal-500 text-white rounded-full text-sm font-medium shadow-md"
-                      >
-                        <span>{symptom.replace(/_/g, ' ')}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeSymptom(symptom)}
-                          className="hover:bg-white/20 rounded-full p-1 transition-colors"
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  Selected Symptoms {selectedSymptoms.length > 0 && `(${selectedSymptoms.length})`}
+                </label>
+                <div className="min-h-[120px] p-4 bg-gradient-to-br from-blue-50/50 to-teal-50/50 rounded-xl border-2 border-blue-100 max-h-48 overflow-y-auto">
+                  {selectedSymptoms.length === 0 ? (
+                    <p className="text-gray-400 text-center py-8">No symptoms selected yet</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {selectedSymptoms.map((symptom) => (
+                        <span
+                          key={symptom}
+                          className="inline-flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-teal-500 text-white rounded-full text-sm font-medium shadow-md hover:shadow-lg transition-all"
                         >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
+                          <span>{symptom.replace(/_/g, ' ')}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeSymptom(symptom)}
+                            className="hover:bg-white/20 rounded-full p-1 transition-colors"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
 
               {/* Error Message */}
               {error && (
-                <div className="p-5 bg-red-50 border-2 border-red-200 rounded-xl flex items-start space-x-3">
-                  <AlertCircle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
+                <div className="p-4 bg-red-50 border-2 border-red-200 rounded-xl flex items-start space-x-3 animate-fade-in">
+                  <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-red-700 leading-relaxed">{error}</p>
                 </div>
               )}
@@ -353,39 +256,65 @@ export default function DiseasePredictionPage() {
                 type="button"
                 onClick={handlePredict}
                 disabled={loading || selectedSymptoms.length === 0}
-                className="w-full px-8 py-5 bg-gradient-to-r from-blue-500 to-teal-500 text-white rounded-xl font-bold text-lg hover:shadow-2xl hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center space-x-3"
+                className="w-full px-8 py-4 bg-gradient-to-r from-blue-500 to-teal-500 text-white rounded-xl font-bold text-lg hover:shadow-2xl hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center space-x-3"
               >
                 {loading ? (
                   <>
-                    <Loader2 className="w-6 h-6 animate-spin" />
+                    <Loader2 className="w-5 h-5 animate-spin" />
                     <span>Analyzing...</span>
                   </>
                 ) : (
-                  <span>Predict Disease</span>
+                  <>
+                    <Sparkles className="w-5 h-5" />
+                    <span>Predict Disease</span>
+                  </>
                 )}
               </button>
+
+              {/* API URL (Collapsible) */}
+              <details className="group">
+                <summary className="cursor-pointer text-sm text-gray-600 hover:text-gray-800 font-medium transition-colors">
+                  Advanced Settings
+                </summary>
+                <div className="mt-3">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    API URL
+                  </label>
+                  <input
+                    type="text"
+                    value={apiUrl}
+                    onChange={(e) => setApiUrl(e.target.value)}
+                    placeholder="http://localhost:8000"
+                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm shadow-sm"
+                  />
+                </div>
+              </details>
             </div>
           </div>
 
           {/* Results Panel */}
-          <div className="backdrop-blur-xl bg-white/95 rounded-3xl shadow-2xl border border-white/30 p-8">
-            <div className="flex items-center space-x-4 mb-6">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg">
-                <Activity className="w-6 h-6 text-white" />
+          <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-8 hover:shadow-2xl transition-all duration-500">
+            <div className="flex items-center space-x-3 mb-6">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-md">
+                <Activity className="w-5 h-5 text-white" />
               </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800">Prediction Results</h2>
-                <p className="text-gray-600 text-sm">AI-powered disease analysis</p>
-              </div>
+              <h2 className="text-xl font-bold text-gray-800">Prediction Results</h2>
             </div>
 
             {!prediction && !loading && (
-              <div className="flex flex-col items-center justify-center h-96 text-center">
-                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                  <Activity className="w-12 h-12 text-gray-400" />
+              <div className="flex flex-col items-center justify-center h-[500px] text-center">
+                <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mb-4">
+                  <Activity className="w-10 h-10 text-gray-400" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-700 mb-2">No Prediction Yet</h3>
-                <p className="text-gray-500">Select symptoms and click "Predict Disease" to get AI analysis</p>
+                <h3 className="text-lg font-semibold text-gray-700 mb-2">No Prediction Yet</h3>
+                <p className="text-gray-500 text-sm max-w-xs">Select your symptoms and click "Predict Disease" to get AI-powered analysis</p>
+              </div>
+            )}
+
+            {loading && (
+              <div className="flex flex-col items-center justify-center h-[500px]">
+                <Loader2 className="w-16 h-16 text-blue-500 animate-spin mb-4" />
+                <p className="text-gray-600 font-medium">Analyzing your symptoms...</p>
               </div>
             )}
 
@@ -393,17 +322,17 @@ export default function DiseasePredictionPage() {
               <div className="space-y-6 animate-fade-in">
                 <div className="p-6 bg-gradient-to-br from-blue-50 via-white to-teal-50 rounded-2xl border-2 border-blue-200 space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-bold text-gray-800">Analysis Complete</h3>
-                    <CheckCircle2 className="w-8 h-8 text-green-500" />
+                    <h3 className="text-lg font-bold text-gray-800">Analysis Complete</h3>
+                    <CheckCircle2 className="w-7 h-7 text-green-500" />
                   </div>
                   
-                  <div className="p-5 bg-white/70 rounded-xl border border-blue-100">
-                    <span className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Predicted Disease:</span>
-                    <p className="text-3xl font-bold text-blue-600 mt-2">{prediction.prediction}</p>
+                  <div className="p-5 bg-white rounded-xl border border-blue-100">
+                    <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Predicted Disease</span>
+                    <p className="text-2xl font-bold text-blue-600 mt-2">{prediction.prediction}</p>
                   </div>
                   
-                  <div className="p-5 bg-white/70 rounded-xl border border-blue-100">
-                    <span className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Confidence Level:</span>
+                  <div className="p-5 bg-white rounded-xl border border-blue-100">
+                    <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Confidence Level</span>
                     <div className="flex items-center space-x-4 mt-3">
                       <div className="flex-1 h-3 bg-gray-200 rounded-full overflow-hidden shadow-inner">
                         <div 
@@ -417,33 +346,41 @@ export default function DiseasePredictionPage() {
                 </div>
 
                 {/* Medical Disclaimer */}
-                <div className="p-5 bg-yellow-50 border-2 border-yellow-200 rounded-xl">
+                <div className="p-4 bg-yellow-50 border-2 border-yellow-200 rounded-xl">
                   <div className="flex items-start space-x-3">
-                    <AlertCircle className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-0.5" />
-                    <div className="text-sm text-yellow-800">
-                      <p className="font-bold mb-2">⚠️ Important Medical Disclaimer:</p>
+                    <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-xs text-yellow-800">
+                      <p className="font-bold mb-1">⚠️ Medical Disclaimer</p>
                       <p className="leading-relaxed">This is an AI prediction and should not replace professional medical advice. Please consult with a qualified healthcare provider for proper diagnosis and treatment.</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Consult Doctor Button */}
-                <button
-                  type="button"
-                  onClick={handleConsultDoctor}
-                  className="w-full px-8 py-5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-bold text-lg hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center space-x-3 group"
-                >
-                  <Stethoscope className="w-6 h-6" />
-                  <span>Consult a Doctor</span>
-                  <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
-                </button>
+                {/* Action Buttons */}
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={handleConsultDoctor}
+                    className="w-full px-6 py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-bold hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center space-x-3 group"
+                  >
+                    <Stethoscope className="w-5 h-5" />
+                    <span>Consult a Doctor</span>
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className="w-full px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-all duration-300 border-2 border-gray-200"
+                  >
+                    New Prediction
+                  </button>
+                </div>
               </div>
             )}
           </div>
         </div>
       </div>
-
-      <Footer />
-    </NeuralNetworkContainer>
+    </div>
   );
 }
