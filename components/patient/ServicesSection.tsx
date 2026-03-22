@@ -16,17 +16,18 @@ function ServiceCard({ icon, title, features, backgroundImage, onClick }: Servic
   return (
     <div 
       onClick={onClick}
-      className={`group rounded-3xl shadow-lg border border-white/30 p-8 hover:shadow-2xl hover:scale-105 transition-all duration-500 relative overflow-hidden backdrop-blur-xl bg-white/60 hover:bg-white/80 ${onClick ? 'cursor-pointer' : ''}`}
+      className={`group rounded-3xl shadow-lg border border-white/30 p-8 hover:shadow-2xl hover:scale-105 transition-all duration-500 relative overflow-hidden bg-white ${onClick ? 'cursor-pointer' : ''}`}
     >
       {/* Background Image */}
       {backgroundImage && (
-        <div 
-          className="absolute inset-0 bg-cover bg-center opacity-30 group-hover:opacity-50 transition-opacity duration-500"
-          style={{ backgroundImage: `url(${backgroundImage})` }}
-        ></div>
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-75 transition-opacity duration-500 service-card-bg"
+          data-bg={backgroundImage}
+          ref={(el) => { if (el && backgroundImage) el.style.backgroundImage = `url(${backgroundImage})` }}
+        />
       )}
-      {/* Overlay for readability */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-blue-50/40 group-hover:from-white/60 group-hover:to-blue-50/60 transition-all duration-500"></div>
+      {/* Subtle overlay for readability */}
+      <div className="absolute inset-0 bg-gradient-to-b from-white/70 via-transparent to-white/50 group-hover:from-white/50 transition-all duration-500"></div>
       
       <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-teal-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 relative z-10 shadow-lg group-hover:shadow-2xl">
         {icon}

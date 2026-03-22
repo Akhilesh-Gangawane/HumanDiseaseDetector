@@ -8,18 +8,18 @@ interface NeuralNetworkContainerProps {
   className?: string
 }
 
-export default function NeuralNetworkContainer({ 
-  children, 
-  className = '' 
+export default function NeuralNetworkContainer({
+  children,
+  className = '',
 }: NeuralNetworkContainerProps) {
   return (
     <div className={`relative ${className}`}>
-      {/* Neural Network Background */}
+      {/* Background — position:absolute, inset-0 fills the relative parent */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <NeuralNetworkBackground />
       </div>
-      
-      {/* Content */}
+
+      {/* Page content sits above the background */}
       <div className="relative z-10">
         {children}
       </div>

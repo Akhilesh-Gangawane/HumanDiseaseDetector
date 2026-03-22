@@ -232,6 +232,7 @@ export default function DiseasePredictionPage() {
                           <button
                             type="button"
                             onClick={() => removeSymptom(symptom)}
+                            aria-label={`Remove ${symptom.replace(/_/g, ' ')}`}
                             className="hover:bg-white/20 rounded-full p-1 transition-colors"
                           >
                             <X className="w-3.5 h-3.5" />

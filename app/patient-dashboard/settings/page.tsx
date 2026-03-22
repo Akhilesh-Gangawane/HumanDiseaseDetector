@@ -295,8 +295,7 @@ export default function PatientSettingsPage() {
               emailNotifications ? 'bg-blue-600' : 'bg-gray-300'
             }`}
             aria-label="Toggle email notifications"
-            role="switch"
-            aria-checked={emailNotifications as any}
+            data-state={emailNotifications ? 'checked' : 'unchecked'}
           >
             <span
               className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
@@ -323,8 +322,7 @@ export default function PatientSettingsPage() {
               pushNotifications ? 'bg-blue-600' : 'bg-gray-300'
             }`}
             aria-label="Toggle push notifications"
-            role="switch"
-            aria-checked={pushNotifications as any}
+            data-state={pushNotifications ? 'checked' : 'unchecked'}
           >
             <span
               className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
@@ -351,8 +349,7 @@ export default function PatientSettingsPage() {
               smsNotifications ? 'bg-blue-600' : 'bg-gray-300'
             }`}
             aria-label="Toggle SMS notifications"
-            role="switch"
-            aria-checked={smsNotifications as any}
+            data-state={smsNotifications ? 'checked' : 'unchecked'}
           >
             <span
               className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
@@ -501,8 +498,7 @@ export default function PatientSettingsPage() {
               darkMode ? 'bg-blue-600' : 'bg-gray-300'
             }`}
             aria-label="Toggle dark mode"
-            role="switch"
-            aria-checked={darkMode as any}
+            data-state={darkMode ? 'checked' : 'unchecked'}
           >
             <span
               className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${

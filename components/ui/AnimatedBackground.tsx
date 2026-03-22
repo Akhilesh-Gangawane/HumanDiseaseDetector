@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import GalaxyStars from './GalaxyStars'
 
 type AnimatedBackgroundProps = {
   /**
@@ -152,6 +153,21 @@ export default function AnimatedBackground({ fullScreen = true }: AnimatedBackgr
     <div className={wrapperClass}>
       {/* Animated Gradient Mesh Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-white via-cyan-50/30 to-blue-50/50" />
+
+      {/* Galaxy Stars — deepest layer */}
+      <GalaxyStars
+        speed={0.4}
+        density={0.9}
+        hueShift={200}
+        glowIntensity={0.25}
+        saturation={60}
+        mouseRepulsion
+        repulsionStrength={1.8}
+        twinkleIntensity={0.35}
+        rotationSpeed={0.06}
+        transparent
+        className="opacity-50"
+      />
       
       {/* Animated Gradient Orbs */}
       <div className="absolute inset-0">

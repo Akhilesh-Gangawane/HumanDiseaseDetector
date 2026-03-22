@@ -1,33 +1,34 @@
 'use client';
 
-import { FlaskConical, Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin } from 'lucide-react';
+import { Activity, Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin } from 'lucide-react';
 import Link from 'next/link';
 
 export default function Footer() {
   return (
-    <footer className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
+    <footer className="bg-gradient-to-br from-blue-950 via-blue-900 to-teal-900 text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid md:grid-cols-4 gap-8 mb-8">
-          {/* Brand Section */}
+
+          {/* Brand */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-teal-600 rounded-lg flex items-center justify-center">
-                <FlaskConical size={20} className="text-white" />
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-teal-500 rounded-lg flex items-center justify-center shadow-md">
+                <Activity size={20} className="text-white" />
               </div>
-              <span className="text-xl font-bold">MedCare</span>
+              <span className="text-xl font-bold tracking-tight">Dhanvantari</span>
             </div>
-            <p className="text-gray-400 text-sm leading-relaxed">
-              Your trusted healthcare partner providing quality medical services and pathology tests at your doorstep.
+            <p className="text-blue-200/70 text-sm leading-relaxed">
+              Your trusted AI-powered healthcare partner — providing intelligent medical services and clinical support.
             </p>
           </div>
 
           {/* Quick Links */}
           <div>
-            <h3 className="font-bold text-lg mb-4">Quick Links</h3>
+            <h3 className="font-bold text-sm uppercase tracking-wider text-blue-300 mb-4">Quick Links</h3>
             <ul className="space-y-2">
-              {['About Us', 'Services', 'Doctors', 'Tests', 'Contact'].map((item) => (
+              {['About Us', 'Services', 'Doctors', 'Lab Tests', 'Contact'].map((item) => (
                 <li key={item}>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors text-sm">
+                  <Link href="#" className="text-blue-200/70 hover:text-white transition-colors text-sm">
                     {item}
                   </Link>
                 </li>
@@ -37,11 +38,11 @@ export default function Footer() {
 
           {/* Services */}
           <div>
-            <h3 className="font-bold text-lg mb-4">Services</h3>
+            <h3 className="font-bold text-sm uppercase tracking-wider text-blue-300 mb-4">Services</h3>
             <ul className="space-y-2">
-              {['Consult Doctor', 'Pathology Tests', 'Buy Medicine', 'Health Packages', 'Home Collection'].map((item) => (
+              {['Consult Doctor', 'Pathology Tests', 'Buy Medicine', 'AI Predictions', 'Telemedicine'].map((item) => (
                 <li key={item}>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors text-sm">
+                  <Link href="#" className="text-blue-200/70 hover:text-white transition-colors text-sm">
                     {item}
                   </Link>
                 </li>
@@ -49,43 +50,42 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Contact Info */}
+          {/* Contact */}
           <div>
-            <h3 className="font-bold text-lg mb-4">Contact Us</h3>
+            <h3 className="font-bold text-sm uppercase tracking-wider text-blue-300 mb-4">Contact Us</h3>
             <ul className="space-y-3">
-              <li className="flex items-start gap-2 text-gray-400 text-sm">
-                <Phone size={16} className="mt-1 flex-shrink-0" />
+              <li className="flex items-start gap-2 text-blue-200/70 text-sm">
+                <Phone size={15} className="mt-0.5 flex-shrink-0 text-teal-400" />
                 <span>1800-123-4567</span>
               </li>
-              <li className="flex items-start gap-2 text-gray-400 text-sm">
-                <Mail size={16} className="mt-1 flex-shrink-0" />
-                <span>support@medcare.com</span>
+              <li className="flex items-start gap-2 text-blue-200/70 text-sm">
+                <Mail size={15} className="mt-0.5 flex-shrink-0 text-teal-400" />
+                <span>support@dhanvantari.ai</span>
               </li>
-              <li className="flex items-start gap-2 text-gray-400 text-sm">
-                <MapPin size={16} className="mt-1 flex-shrink-0" />
+              <li className="flex items-start gap-2 text-blue-200/70 text-sm">
+                <MapPin size={15} className="mt-0.5 flex-shrink-0 text-teal-400" />
                 <span>123 Healthcare Street, Medical District, India</span>
               </li>
             </ul>
           </div>
         </div>
 
-        {/* Social Media & Copyright */}
-        <div className="border-t border-gray-700 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-gray-400 text-sm">
-            © {new Date().getFullYear()} MedCare. All rights reserved.
+        {/* Bottom bar */}
+        <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+          <p className="text-blue-200/50 text-sm">
+            © {new Date().getFullYear()} Dhanvantari AI. All rights reserved.
           </p>
-          
-          <div className="flex gap-4">
+          <div className="flex gap-3">
             {[
-              { icon: <Facebook size={18} />, href: '#' },
-              { icon: <Twitter size={18} />, href: '#' },
-              { icon: <Instagram size={18} />, href: '#' },
-              { icon: <Linkedin size={18} />, href: '#' },
+              { icon: <Facebook size={16} />, href: '#' },
+              { icon: <Twitter size={16} />, href: '#' },
+              { icon: <Instagram size={16} />, href: '#' },
+              { icon: <Linkedin size={16} />, href: '#' },
             ].map((social, i) => (
               <Link
                 key={i}
                 href={social.href}
-                className="w-9 h-9 bg-gray-800 hover:bg-gradient-to-r hover:from-blue-600 hover:to-teal-600 rounded-lg flex items-center justify-center transition-all duration-300"
+                className="w-9 h-9 bg-white/10 hover:bg-gradient-to-r hover:from-blue-500 hover:to-teal-500 rounded-lg flex items-center justify-center transition-all duration-300"
               >
                 {social.icon}
               </Link>
