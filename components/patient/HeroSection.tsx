@@ -27,7 +27,7 @@ export default function HeroSection() {
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left Content */}
           <div className="space-y-8 animate-fade-in">
-            <div className="inline-flex items-center space-x-2 px-4 py-2 bg-white/60 backdrop-blur-sm rounded-full border border-blue-200/50">
+            <div className="inline-flex items-center space-x-2 px-4 py-2 bg-white rounded-full border border-blue-200 shadow-sm">
               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
               <span className="text-sm font-medium text-gray-700">AI-Powered Healthcare Platform</span>
             </div>
@@ -55,7 +55,7 @@ export default function HeroSection() {
               </button>
               <button 
                 onClick={() => router.push('/consult-doctor')}
-                className="px-8 py-4 bg-white/80 backdrop-blur-sm text-blue-600 rounded-xl font-semibold border-2 border-blue-200 hover:border-blue-400 hover:shadow-lg transition-all duration-300"
+                className="px-8 py-4 bg-white text-blue-600 rounded-xl font-semibold border-2 border-blue-200 hover:border-blue-400 hover:shadow-lg transition-all duration-300"
               >
                 Consult Doctor
               </button>
@@ -63,15 +63,15 @@ export default function HeroSection() {
 
             {/* Stats */}
             <div className="grid grid-cols-3 gap-6 pt-8">
-              <div className="text-center">
+              <div className="text-center bg-white p-4 rounded-2xl hover:shadow-lg hover:scale-105 transition-all duration-300 border border-gray-200">
                 <div className="text-3xl font-bold text-blue-600">98%</div>
                 <div className="text-sm text-gray-600">Accuracy</div>
               </div>
-              <div className="text-center">
+              <div className="text-center bg-white p-4 rounded-2xl hover:shadow-lg hover:scale-105 transition-all duration-300 border border-gray-200">
                 <div className="text-3xl font-bold text-teal-600">50K+</div>
                 <div className="text-sm text-gray-600">Predictions</div>
               </div>
-              <div className="text-center">
+              <div className="text-center bg-white p-4 rounded-2xl hover:shadow-lg hover:scale-105 transition-all duration-300 border border-gray-200">
                 <div className="text-3xl font-bold text-blue-600">24/7</div>
                 <div className="text-sm text-gray-600">Support</div>
               </div>

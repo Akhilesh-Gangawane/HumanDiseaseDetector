@@ -15,7 +15,7 @@ const notifications = [
   {
     id: 2,
     title: 'New AI Prediction',
-    message: 'AI has analyzed Emma Wilson\'s symptoms',
+    message: "AI has analyzed Emma Wilson's symptoms",
     time: '15 mins ago',
     type: 'info',
     read: false,
@@ -74,8 +74,10 @@ export default function NotificationDropdown() {
   return (
     <div className="relative">
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 hover:bg-blue-50 rounded-lg transition-colors"
+        aria-label="Toggle notifications"
       >
         <Bell className="w-6 h-6 text-gray-700" />
         {unreadCount > 0 && (
@@ -90,6 +92,7 @@ export default function NotificationDropdown() {
           <div className="flex items-center justify-between p-4 border-b border-gray-100">
             <h3 className="font-bold text-gray-900">Notifications</h3>
             <button
+              type="button"
               onClick={markAllAsRead}
               className="text-sm text-blue-600 hover:text-blue-700 font-medium"
             >
@@ -109,9 +112,7 @@ export default function NotificationDropdown() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <span
-                        className={`px-2 py-1 rounded-full text-xs font-semibold ${getTypeColor(
-                          notif.type
-                        )}`}
+                        className={`px-2 py-1 rounded-full text-xs font-semibold ${getTypeColor(notif.type)}`}
                       >
                         {notif.type}
                       </span>
@@ -125,6 +126,7 @@ export default function NotificationDropdown() {
                   </div>
                   {!notif.read && (
                     <button
+                      type="button"
                       onClick={() => markAsRead(notif.id)}
                       className="p-1 hover:bg-blue-100 rounded transition-colors"
                       aria-label="Mark notification as read"

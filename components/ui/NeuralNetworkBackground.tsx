@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import GalaxyStars from './GalaxyStars'
 
 interface Particle {
   x: number
@@ -14,150 +15,142 @@ interface Particle {
 
 export default function NeuralNetworkBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const mouseRef = useRef({ x: 0, y: 0 })
+  const mouseRef = useRef({ x: -9999, y: -9999 })
   const particlesRef = useRef<Particle[]>([])
+  const rafRef = useRef<number>(0)
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
 
-    const ctx = canvas.getContext('2d')
+    const ctx = canvas.getContext('2d', { alpha: true })
     if (!ctx) return
 
+    // Use the grandparent (the overflow-hidden div in NeuralNetworkContainer)
     const container = canvas.parentElement
     if (!container) return
 
-    // Set canvas size to match container
     const setCanvasSize = () => {
       const rect = container.getBoundingClientRect()
-      canvas.width = rect.width
-      canvas.height = rect.height
+      canvas.width = rect.width || window.innerWidth
+      canvas.height = rect.height || window.innerHeight
       initParticles()
     }
 
-    // Initialize particles
     const initParticles = () => {
       particlesRef.current = []
-      const particleCount = Math.floor((canvas.width * canvas.height) / 15000)
-      
+      const particleCount = Math.min(60, Math.floor((canvas.width * canvas.height) / 20000))
       for (let i = 0; i < particleCount; i++) {
         const x = Math.random() * canvas.width
         const y = Math.random() * canvas.height
-        
         particlesRef.current.push({
-          x,
-          y,
-          vx: (Math.random() - 0.5) * 0.5,
-          vy: (Math.random() - 0.5) * 0.5,
-          radius: Math.random() * 2 + 1,
+          x, y,
+          vx: (Math.random() - 0.5) * 0.4,
+          vy: (Math.random() - 0.5) * 0.4,
+          radius: Math.random() * 1.5 + 0.5,
           originalX: x,
-          originalY: y
+          originalY: y,
         })
       }
     }
 
     setCanvasSize()
-    window.addEventListener('resize', setCanvasSize)
 
-    // Mouse move handler
+    const resizeObserver = new ResizeObserver(setCanvasSize)
+    resizeObserver.observe(container)
+
+    let lastMouseUpdate = 0
     const handleMouseMove = (e: MouseEvent) => {
+      const now = performance.now()
+      if (now - lastMouseUpdate < 32) return
+      lastMouseUpdate = now
       const rect = canvas.getBoundingClientRect()
-      mouseRef.current = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-      }
+      mouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top }
     }
-
-    canvas.addEventListener('mousemove', handleMouseMove)
-
-    // Animation loop
-    let animationFrameId: number
+    window.addEventListener('mousemove', handleMouseMove, { passive: true })
 
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
-
       const particles = particlesRef.current
       const mouse = mouseRef.current
 
-      // Update and draw particles
-      particles.forEach((particle, index) => {
-        // Mouse interaction - particles move away from cursor
-        const dx = mouse.x - particle.x
-        const dy = mouse.y - particle.y
-        const distance = Math.sqrt(dx * dx + dy * dy)
-        const maxDistance = 100
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i]
+        const dx = mouse.x - p.x
+        const dy = mouse.y - p.y
+        const distSq = dx * dx + dy * dy
+        const maxDist = 100
 
-        if (distance < maxDistance) {
-          const force = (maxDistance - distance) / maxDistance
+        if (distSq < maxDist * maxDist) {
+          const dist = Math.sqrt(distSq)
+          const force = (maxDist - dist) / maxDist
           const angle = Math.atan2(dy, dx)
-          particle.vx -= Math.cos(angle) * force * 0.2
-          particle.vy -= Math.sin(angle) * force * 0.2
+          p.vx -= Math.cos(angle) * force * 0.15
+          p.vy -= Math.sin(angle) * force * 0.15
         }
 
-        // Return to original position slowly
-        particle.vx += (particle.originalX - particle.x) * 0.01
-        particle.vy += (particle.originalY - particle.y) * 0.01
+        p.vx += (p.originalX - p.x) * 0.008
+        p.vy += (p.originalY - p.y) * 0.008
+        p.vx *= 0.94
+        p.vy *= 0.94
+        p.x += p.vx
+        p.y += p.vy
 
-        // Apply velocity with damping
-        particle.vx *= 0.95
-        particle.vy *= 0.95
+        if (p.x < 0 || p.x > canvas.width) { p.vx *= -1; p.x = Math.max(0, Math.min(canvas.width, p.x)) }
+        if (p.y < 0 || p.y > canvas.height) { p.vy *= -1; p.y = Math.max(0, Math.min(canvas.height, p.y)) }
 
-        particle.x += particle.vx
-        particle.y += particle.vy
-
-        // Keep particles in bounds
-        if (particle.x < 0 || particle.x > canvas.width) {
-          particle.vx *= -1
-          particle.x = Math.max(0, Math.min(canvas.width, particle.x))
-        }
-        if (particle.y < 0 || particle.y > canvas.height) {
-          particle.vy *= -1
-          particle.y = Math.max(0, Math.min(canvas.height, particle.y))
-        }
-
-        // Draw particle
         ctx.beginPath()
-        ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2)
-        ctx.fillStyle = 'rgba(59, 130, 246, 0.6)' // Blue
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2)
+        ctx.fillStyle = 'rgba(14,165,233,0.5)'
         ctx.fill()
 
-        // Draw connections to nearby particles
-        particles.slice(index + 1).forEach(otherParticle => {
-          const dx = particle.x - otherParticle.x
-          const dy = particle.y - otherParticle.y
-          const distance = Math.sqrt(dx * dx + dy * dy)
-          const maxConnectionDistance = 120
-
-          if (distance < maxConnectionDistance) {
-            const opacity = (1 - distance / maxConnectionDistance) * 0.3
-            
+        const limit = Math.min(i + 10, particles.length)
+        for (let j = i + 1; j < limit; j++) {
+          const o = particles[j]
+          const cx = p.x - o.x
+          const cy = p.y - o.y
+          const dist = Math.sqrt(cx * cx + cy * cy)
+          if (dist < 120) {
             ctx.beginPath()
-            ctx.strokeStyle = `rgba(59, 130, 246, ${opacity})`
+            ctx.strokeStyle = `rgba(14,165,233,${(1 - dist / 120) * 0.2})`
             ctx.lineWidth = 0.5
-            ctx.moveTo(particle.x, particle.y)
-            ctx.lineTo(otherParticle.x, otherParticle.y)
+            ctx.moveTo(p.x, p.y)
+            ctx.lineTo(o.x, o.y)
             ctx.stroke()
           }
-        })
-      })
+        }
+      }
 
-      animationFrameId = requestAnimationFrame(animate)
+      rafRef.current = requestAnimationFrame(animate)
     }
 
     animate()
 
     return () => {
-      window.removeEventListener('resize', setCanvasSize)
-      canvas.removeEventListener('mousemove', handleMouseMove)
-      cancelAnimationFrame(animationFrameId)
+      resizeObserver.disconnect()
+      window.removeEventListener('mousemove', handleMouseMove)
+      cancelAnimationFrame(rafRef.current)
     }
   }, [])
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 w-full h-full"
-      style={{ pointerEvents: 'auto' }}
-    />
+    /* This wrapper fills the parent absolutely — both canvases size off it */
+    <div className="absolute inset-0 w-full h-full">
+      {/* Layer 1 — Galaxy stars */}
+      <GalaxyStars
+        speed={0.5}
+        density={2.5}
+        hueShift={200}
+        glowIntensity={0.35}
+        saturation={70}
+        mouseRepulsion
+        repulsionStrength={2}
+        twinkleIntensity={0.4}
+        rotationSpeed={0.08}
+        transparent
+      />
+      {/* Layer 2 — Neural network nodes */}
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
+    </div>
   )
 }

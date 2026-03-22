@@ -44,9 +44,9 @@ export default function AboutSection() {
             initial={{ opacity: 0, x: 50 }}
             animate={isInView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.8, delay: 0.2, ease: 'easeOut' }}
-            className="bg-gradient-to-br from-sky-50 to-white p-10 rounded-3xl shadow-2xl border border-sky-200"
+            className="group backdrop-blur-xl bg-gradient-to-br from-sky-50/80 to-white/80 p-10 rounded-3xl shadow-2xl border border-sky-200 hover:shadow-3xl hover:scale-105 transition-all duration-500"
           >
-            <h3 className="text-2xl font-bold text-sky-900 mb-8">Why Choose Us</h3>
+            <h3 className="text-2xl font-bold text-sky-900 mb-8 group-hover:text-sky-600 transition-colors duration-300">Why Choose Us</h3>
             <div className="space-y-8">
               {stats.map((stat, index) => (
                 <motion.div
@@ -54,7 +54,8 @@ export default function AboutSection() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={isInView ? { opacity: 1, y: 0 } : {}}
                   transition={{ duration: 0.6, delay: 0.3 + index * 0.1 }}
-                  className="flex items-center gap-6"
+                  whileHover={{ x: 10, scale: 1.05 }}
+                  className="flex items-center gap-6 backdrop-blur-sm bg-white/40 p-4 rounded-2xl hover:bg-white/60 transition-all duration-300"
                 >
                   <div className="text-5xl font-bold text-sky-600">{stat.value}</div>
                   <div className="text-lg text-gray-700">{stat.label}</div>

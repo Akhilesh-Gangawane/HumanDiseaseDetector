@@ -102,18 +102,18 @@ export default function FeaturesSection() {
               initial={{ opacity: 0, y: 30 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.6, delay: index * 0.1 }}
-              whileHover={{ y: -10, scale: 1.02 }}
-              className="relative bg-white p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all border border-sky-100 overflow-hidden"
+              whileHover={{ y: -10, scale: 1.05 }}
+              className="group relative backdrop-blur-xl bg-white/60 p-8 rounded-2xl shadow-lg hover:shadow-2xl hover:bg-white/80 transition-all duration-500 border border-sky-100 overflow-hidden"
             >
               {/* Custom Background */}
               {feature.background}
               
               <div className="relative z-10">
-                <div className="w-16 h-16 bg-gradient-to-br from-sky-400 to-sky-600 rounded-xl flex items-center justify-center text-white mb-6">
+                <div className="w-16 h-16 bg-gradient-to-br from-sky-400 to-sky-600 rounded-xl flex items-center justify-center text-white mb-6 group-hover:rotate-6 group-hover:scale-110 transition-all duration-500">
                   {feature.icon}
                 </div>
-                <h3 className="text-xl font-bold text-sky-900 mb-3">{feature.title}</h3>
-                <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+                <h3 className="text-xl font-bold text-sky-900 mb-3 group-hover:text-sky-600 transition-colors duration-300">{feature.title}</h3>
+                <p className="text-gray-600 leading-relaxed group-hover:text-gray-800 transition-colors duration-300">{feature.description}</p>
               </div>
             </motion.div>
           ))}

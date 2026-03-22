@@ -58,22 +58,22 @@ export default function HowItWorks() {
               initial={{ opacity: 0, y: 50 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.6, delay: index * 0.15 }}
-              className="relative"
+              className="relative group"
             >
               {/* Connector Line */}
               {index < steps.length - 1 && (
                 <div className="hidden lg:block absolute top-16 left-full w-full h-0.5 bg-gradient-to-r from-sky-300 to-sky-200 -z-10" />
               )}
 
-              <div className="text-center">
+              <div className="text-center backdrop-blur-lg bg-white/50 p-8 rounded-3xl hover:bg-white/70 hover:shadow-xl transition-all duration-500">
                 <motion.div
-                  whileHover={{ scale: 1.1, rotate: 5 }}
-                  className={`w-32 h-32 mx-auto mb-6 bg-gradient-to-br ${step.color} rounded-2xl flex items-center justify-center shadow-xl`}
+                  whileHover={{ scale: 1.15, rotate: 10 }}
+                  className={`w-32 h-32 mx-auto mb-6 bg-gradient-to-br ${step.color} rounded-2xl flex items-center justify-center shadow-xl hover:shadow-2xl transition-all duration-500`}
                 >
                   <span className="text-5xl font-bold text-white">{step.number}</span>
                 </motion.div>
-                <h3 className="text-xl font-bold text-sky-900 mb-3">{step.title}</h3>
-                <p className="text-gray-600 leading-relaxed">{step.description}</p>
+                <h3 className="text-xl font-bold text-sky-900 mb-3 group-hover:text-sky-600 transition-colors duration-300">{step.title}</h3>
+                <p className="text-gray-600 leading-relaxed group-hover:text-gray-800 transition-colors duration-300">{step.description}</p>
               </div>
             </motion.div>
           ))}

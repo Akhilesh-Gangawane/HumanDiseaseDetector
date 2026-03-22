@@ -1,13 +1,14 @@
 'use client';
 
-import { BarChart3, TrendingUp, Activity } from 'lucide-react';
+import { TrendingUp, Activity, PieChart as PieChartIcon } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 const diseaseData = [
-  { disease: 'Diabetes', count: 245, color: 'bg-blue-500' },
-  { disease: 'Hypertension', count: 198, color: 'bg-purple-500' },
-  { disease: 'Heart Disease', count: 156, color: 'bg-red-500' },
-  { disease: 'Respiratory', count: 134, color: 'bg-green-500' },
-  { disease: 'Arthritis', count: 98, color: 'bg-orange-500' },
+  { disease: 'Diabetes', count: 245 },
+  { disease: 'Hypertension', count: 198 },
+  { disease: 'Heart Disease', count: 156 },
+  { disease: 'Respiratory', count: 134 },
+  { disease: 'Arthritis', count: 98 },
 ];
 
 const weeklyData = [
@@ -20,15 +21,13 @@ const weeklyData = [
   { day: 'Sun', count: 32 },
 ];
 
-export default function ReportsAnalytics() {
-  const maxCount = Math.max(...diseaseData.map((d) => d.count));
-  const maxWeekly = Math.max(...weeklyData.map((d) => d.count));
+const COLORS = ['#3b82f6', '#a855f7', '#ef4444', '#22c55e', '#f97316'];
 
+export default function ReportsAnalytics() {
   return (
     <div className="p-8">
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Reports & Analytics</h1>
 
-      {/* AI Accuracy Card */}
       <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg p-8 mb-8 text-white">
         <div className="flex items-center justify-between">
           <div>
@@ -46,52 +45,52 @@ export default function ReportsAnalytics() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Most Common Diseases */}
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <BarChart3 className="w-6 h-6 text-blue-500" />
-            Most Common Diseases
+            <PieChartIcon className="w-6 h-6 text-blue-500" />
+            Disease Distribution
           </h2>
-          <div className="space-y-4">
-            {diseaseData.map((item, index) => (
-              <div key={index}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium text-gray-900">{item.disease}</span>
-                  <span className="font-bold text-gray-900">{item.count}</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div
-                    className={`${item.color} h-3 rounded-full transition-all duration-500`}
-                    style={{ width: `${(item.count / maxCount) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={diseaseData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="count"
+                  nameKey="disease"
+                  label={({ name, percent }) => percent !== undefined ? `${name} ${(percent * 100).toFixed(0)}%` : name}
+                >
+                  {diseaseData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Weekly Patient Count */}
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
             <Activity className="w-6 h-6 text-green-500" />
             Weekly Patient Count
           </h2>
-          <div className="flex items-end justify-between h-64 gap-4">
-            {weeklyData.map((item, index) => (
-              <div key={index} className="flex-1 flex flex-col items-center">
-                <div className="w-full flex items-end justify-center h-48">
-                  <div
-                    className="w-full bg-gradient-to-t from-green-500 to-green-400 rounded-t-lg transition-all duration-500 hover:from-green-600 hover:to-green-500 cursor-pointer relative group"
-                    style={{ height: `${(item.count / maxWeekly) * 100}%` }}
-                  >
-                    <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 font-bold text-gray-900 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {item.count}
-                    </span>
-                  </div>
-                </div>
-                <span className="text-sm font-medium text-gray-600 mt-2">{item.day}</span>
-              </div>
-            ))}
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={weeklyData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                <XAxis dataKey="day" axisLine={false} tickLine={false} />
+                <YAxis axisLine={false} tickLine={false} />
+                <Tooltip
+                  cursor={{ fill: '#f3f4f6' }}
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                />
+                <Bar dataKey="count" fill="#22c55e" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>

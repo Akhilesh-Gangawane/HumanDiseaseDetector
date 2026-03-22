@@ -82,7 +82,7 @@ export default function QuickAccessButtons() {
               </div>
 
               {/* Content */}
-              <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:bg-clip-text" style={{ backgroundImage: `linear-gradient(to right, ${action.color})` }}>
+              <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-blue-600 transition-colors duration-300">
                 {action.title}
               </h3>
               <p className="text-sm text-gray-600 mb-4">

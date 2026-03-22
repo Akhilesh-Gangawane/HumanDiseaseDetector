@@ -8,29 +8,42 @@ Dhanvantari AI is an advanced AI-powered healthcare platform that provides disea
 ## 🎯 Core Features
 
 ### 1. AI-Powered Disease Prediction
-- **Dedicated Prediction Page**: Separate page for disease prediction (/disease-prediction)
+- **Dedicated Prediction Page**: Clean, focused page for disease prediction (/disease-prediction)
+- **Modal Access**: Quick prediction from hero section via "Start Prediction" button
 - **Symptom-Based Analysis**: Input symptoms to receive AI-powered disease predictions
-- **Machine Learning Model**: Uses trained ML pipeline with 98% accuracy
+- **Machine Learning Model**: Uses trained ML pipeline with 91% accuracy
 - **Graph-Based Features**: Leverages symptom relationships and co-occurrence patterns
 - **Multi-Factor Analysis**: Considers age, gender, and medical history
 - **Confidence Scoring**: Provides prediction confidence levels with visual progress bar
 - **Real-Time Results**: Instant disease prediction with detailed explanations
 - **Searchable Symptom Database**: 130+ symptoms with autocomplete search
 - **Multiple Symptom Selection**: Add/remove symptoms with tag interface
-- **API Configuration**: Optional custom API URL input
+- **API Configuration**: Optional custom API URL input (collapsible advanced settings)
 - **Medical Disclaimer**: Clear warning about AI limitations
 - **Consult Doctor Integration**: Direct link to doctor consultation after prediction
+- **Clean UI**: No blur effects, solid backgrounds for better readability
+- **Reset Functionality**: Clear all symptoms and start new prediction easily
 
 **Prediction Interface:**
 - Two-column layout (Symptom input | Results display)
 - Interactive symptom search with dropdown
-- Selected symptoms displayed as removable tags
-- Real-time prediction with loading states
-- Confidence level visualization (0-100%)
-- Predicted disease name display
+- Selected symptoms displayed as removable tags with gradient styling
+- Real-time prediction with loading states and spinner
+- Confidence level visualization (0-100%) with animated progress bar
+- Predicted disease name display with large, clear typography
 - Medical disclaimer with warning icon
-- "Consult a Doctor" call-to-action button
-- Smooth redirect to consultation page
+- "Consult a Doctor" call-to-action button with gradient
+- "New Prediction" button for quick reset
+- Smooth animations and transitions
+- Empty state with helpful messaging
+
+**Modal Features:**
+- Opens from hero section "Start Prediction" button
+- Full-screen overlay with close button
+- Same functionality as dedicated page
+- Animated background pattern
+- Scrollable content area
+- Responsive design
 
 **Technical Stack:**
 - Python Flask backend (`Model/app.py`)
@@ -42,11 +55,30 @@ Dhanvantari AI is an advanced AI-powered healthcare platform that provides disea
 
 ### 2. AI Medical Assistant (Chat)
 - **Intelligent Chatbot**: 24/7 AI-powered medical assistant
+- **Voice Input**: Microphone button for hands-free interaction using Web Speech API
+- **Speech Recognition**: Converts voice to text automatically
+- **Visual Feedback**: Animated microphone button when listening (red pulse effect)
 - **Natural Language Processing**: Understands medical queries in plain language
+- **Symptom Detection**: Automatically extracts symptoms from conversation
+- **Disease Prediction Integration**: Analyzes symptoms and provides AI predictions
+- **Confidence Scoring**: Shows prediction confidence with visual progress bar
 - **Health Advice**: Provides evidence-based health information
 - **Symptom Checker**: Interactive symptom assessment
 - **Medical Information**: Answers questions about diseases, medications, and treatments
 - **Conversation History**: Maintains context throughout the conversation
+- **Real-Time Responses**: Instant AI-generated replies with typing indicators
+- **Prediction Badges**: Inline disease prediction results in chat
+- **Browser Support**: Works with Chrome, Edge, and Safari
+
+**Chat Features:**
+- User and AI message bubbles with distinct styling
+- Typing indicator with animated dots
+- Scrollable message history
+- Voice-to-text transcription
+- Automatic symptom extraction from natural language
+- Inline prediction results with confidence meters
+- Medical disclaimer for AI predictions
+- Smooth animations and transitions
 
 ### 3. Doctor Consultation (OPD)
 - **Video Consultation**: Connect with doctors via video call with real-time interface
@@ -256,7 +288,8 @@ Dhanvantari AI is an advanced AI-powered healthcare platform that provides disea
 
 ### Design System
 - **Modern Gradient Theme**: Blue and teal color scheme
-- **Glass Morphism**: Frosted glass effects with backdrop blur
+- **Clean Design**: Removed blur effects for better performance and clarity
+- **Solid Backgrounds**: White and light gray backgrounds for better readability
 - **Smooth Animations**: Framer Motion powered transitions
 - **Responsive Design**: Mobile-first approach, works on all devices
 - **Dark Mode Ready**: Theme toggle support
@@ -374,7 +407,7 @@ Dhanvantari AI is an advanced AI-powered healthcare platform that provides disea
 5. **Health Tracking**: Vitals monitoring dashboard
 6. **Insurance Integration**: Claims processing
 7. **Multi-Language Support**: Regional language options
-8. **Voice Assistant**: Voice-based interaction
+8. **Advanced Voice Assistant**: Multi-language voice interaction
 9. **Wearable Integration**: Fitness tracker sync
 10. **Emergency Services**: Quick access to emergency care
 
@@ -453,13 +486,13 @@ Dhanvantari AI is an advanced AI-powered healthcare platform that provides disea
 ### Reusable Components
 - `PatientNavbar`: Navigation bar with user menu
 - `NeuralNetworkContainer`: Animated background wrapper
-- `PredictionForm`: Disease prediction interface
-- `ChatAssistant`: AI chatbot interface
-- `FeatureCards`: Service showcase cards
+- `PredictionForm`: Disease prediction modal interface with voice input
+- `ChatAssistant`: AI chatbot interface with voice recognition
+- `FeatureCards`: Service showcase cards with hover effects
 - `Footer`: Site footer with links
 - `ScrollProgress`: Page scroll indicator
 - `AnimatedBackground`: Neural network animation
-- `GlassCard`: Frosted glass card component
+- `GlassCard`: Card component with clean design
 - `GradientButton`: Styled action buttons
 
 ### Scroll Components
@@ -492,25 +525,29 @@ Dhanvantari AI is an advanced AI-powered healthcare platform that provides disea
 ## 🌟 Unique Selling Points
 
 1. **AI-Powered Accuracy**: 98% disease prediction accuracy
-2. **Complete Healthcare Platform**: Medicine, Pathology, Consultations - All in one
-3. **Advanced Booking System**: Time slots, waitlist, queue management
-4. **Modern UI/UX**: Engaging and intuitive interface with smooth animations
-5. **Scroll Animations**: Unique entrance experiences for each section
-6. **E-Commerce Features**: Full shopping cart, checkout, payment integration
-7. **Real-Time Tracking**: Order status, queue position, delivery tracking
-8. **Trusted Sources**: Curated medical information from verified sources
-9. **24/7 Availability**: Always accessible healthcare services
-10. **Fast & Responsive**: Optimized performance across all devices
-11. **Mobile-First**: Seamless experience on smartphones and tablets
-12. **Evidence-Based**: Scientifically validated information
-13. **User-Centric**: Designed with patient needs in mind
-14. **Free Home Collection**: No extra charges for sample collection
-15. **Multiple Payment Options**: Card, UPI, Net Banking, COD
-16. **Promo Code System**: Regular discounts and offers
-17. **Digital Reports**: Instant access to test results and invoices
-18. **Doctor Network**: 500+ verified specialists
-19. **Medicine Variety**: 10,000+ products available
-20. **Same-Day Services**: Quick delivery and test results
+2. **Voice-Enabled Assistant**: Hands-free interaction with speech recognition
+3. **Complete Healthcare Platform**: Medicine, Pathology, Consultations - All in one
+4. **Advanced Booking System**: Time slots, waitlist, queue management
+5. **Modern UI/UX**: Clean, engaging and intuitive interface with smooth animations
+6. **Scroll Animations**: Unique entrance experiences for each section
+7. **E-Commerce Features**: Full shopping cart, checkout, payment integration
+8. **Real-Time Tracking**: Order status, queue position, delivery tracking
+9. **Trusted Sources**: Curated medical information from verified sources
+10. **24/7 Availability**: Always accessible healthcare services
+11. **Fast & Responsive**: Optimized performance across all devices
+12. **Mobile-First**: Seamless experience on smartphones and tablets
+13. **Evidence-Based**: Scientifically validated information
+14. **User-Centric**: Designed with patient needs in mind
+15. **Free Home Collection**: No extra charges for sample collection
+16. **Multiple Payment Options**: Card, UPI, Net Banking, COD
+17. **Promo Code System**: Regular discounts and offers
+18. **Digital Reports**: Instant access to test results and invoices
+19. **Doctor Network**: 500+ verified specialists
+20. **Medicine Variety**: 10,000+ products available
+21. **Same-Day Services**: Quick delivery and test results
+22. **Clean Design**: No blur effects for better performance and readability
+23. **Voice Input**: Speech-to-text for easy symptom description
+24. **Modal Predictions**: Quick access from hero section
 
 ---
 
@@ -561,10 +598,21 @@ Developed with ❤️ by the Dhanvantari AI Team
 
 ---
 
-**Last Updated**: March 4, 2026
-**Version**: 2.0.0
+**Last Updated**: March 7, 2026
+**Version**: 2.1.0
 
-**Major Updates in v2.0.0:**
+**Major Updates in v2.1.0:**
+- ✨ Voice Input for AI Medical Assistant (Speech Recognition)
+- ✨ Redesigned Disease Prediction Page (Clean, No Blur Effects)
+- ✨ Modal Prediction Form from Hero Section
+- ✨ Improved UI/UX with Solid Backgrounds
+- ✨ Enhanced Microphone Button with Visual Feedback
+- ✨ Better Performance (Removed Blur Effects)
+- ✨ Collapsible Advanced Settings
+- ✨ Quick Reset Functionality
+- ✨ Improved Empty States and Loading Indicators
+
+**Previous Updates in v2.0.0:**
 - ✨ Complete E-Commerce Platform for Medicine
 - ✨ Advanced Pathology Booking with Time Slots & Waitlist
 - ✨ Queue Management System
