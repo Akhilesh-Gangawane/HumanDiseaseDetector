@@ -2,6 +2,7 @@
 
 import { motion, useInView } from 'framer-motion'
 import { useRef, useState } from 'react'
+import Swal from 'sweetalert2'
 
 export default function ContactSection() {
   const ref = useRef(null)
@@ -12,11 +13,54 @@ export default function ContactSection() {
     phone: '',
     message: '',
   })
+  const [isSending, setIsSending] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    alert(`Thank you ${formData.name}! We'll contact you at ${formData.email} soon.`)
-    setFormData({ name: '', email: '', phone: '', message: '' })
+    setIsSending(true)
+
+    const data = new FormData()
+    data.append('_subject', `New Contact Message from ${formData.name}`)
+    data.append('name', formData.name)
+    data.append('email', formData.email)
+    data.append('phone', formData.phone || 'N/A')
+    data.append('message', formData.message)
+    data.append('_next', window.location.href)
+
+    try {
+      const response = await fetch('https://formsubmit.co/ajax/bhavikdumore309@gmail.com', {
+        method: 'POST',
+        body: data,
+      })
+      const result = await response.json()
+      if (result.success) {
+        Swal.fire({
+          title: 'Message Sent!',
+          text: `Thank you ${formData.name}! We'll get back to you at ${formData.email} soon.`,
+          icon: 'success',
+          confirmButtonColor: '#0ea5e9',
+          draggable: true,
+        })
+        setFormData({ name: '', email: '', phone: '', message: '' })
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Oops...',
+          text: 'Something went wrong. Please try again.',
+          confirmButtonColor: '#0ea5e9',
+        })
+      }
+    } catch (error) {
+      console.error('Contact form error:', error)
+      Swal.fire({
+        icon: 'error',
+        title: 'Submission Failed',
+        text: 'There was an error submitting the form. Please try again.',
+        confirmButtonColor: '#0ea5e9',
+      })
+    } finally {
+      setIsSending(false)
+    }
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -162,11 +206,12 @@ export default function ContactSection() {
 
               <motion.button
                 type="submit"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="w-full px-8 py-4 bg-gradient-to-r from-sky-500 to-sky-600 text-white font-bold text-lg rounded-lg hover:shadow-xl transition-all"
+                disabled={isSending}
+                whileHover={{ scale: isSending ? 1 : 1.02 }}
+                whileTap={{ scale: isSending ? 1 : 0.98 }}
+                className="w-full px-8 py-4 bg-gradient-to-r from-sky-500 to-sky-600 text-white font-bold text-lg rounded-lg hover:shadow-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Send Message
+                {isSending ? 'Sending...' : 'Send Message'}
               </motion.button>
             </div>
           </motion.form>

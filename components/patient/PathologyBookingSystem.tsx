@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { X, Calendar, Clock, Users, AlertCircle, CheckCircle2, Download, MapPin, Phone, Mail, FlaskConical, Loader2, Bell, TrendingUp } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 interface TimeSlot {
   time: string;
@@ -113,7 +114,12 @@ export function BookingTimeSelector({ onSelectSlot, onClose }: BookingTimeSelect
     if (slot.status === 'full') {
       setShowWaitlistConfirm(true);
     } else if (slot.status === 'closed') {
-      alert('This time slot is closed. Please select another time.');
+      Swal.fire({
+        icon: 'info',
+        title: 'Slot Closed',
+        text: 'This time slot is closed. Please select another available time.',
+        confirmButtonColor: '#0d9488',
+      });
     } else {
       onSelectSlot(date, slot.time, false);
     }

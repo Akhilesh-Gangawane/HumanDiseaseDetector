@@ -6,6 +6,7 @@ import NeuralNetworkContainer from '@/components/ui/NeuralNetworkContainer';
 import Footer from '@/components/patient/Footer';
 import PathologyScroll from '@/components/patient/PathologyScroll';
 import { BookingTimeSelector, BookingStatusTracker, QueueDisplay } from '@/components/patient/PathologyBookingSystem';
+import Swal from 'sweetalert2';
 import {
   FlaskConical, Calendar, FileText, Clock, ArrowLeft,
   Search, Star, Shield, Zap, HeartPulse,
@@ -249,7 +250,12 @@ export default function PathologyPage() {
     } else if (promoCode.toUpperCase() === 'LAB10') {
       setDiscount(cartTotal * 0.10);
     } else {
-      alert('Invalid promo code');
+      Swal.fire({
+        icon: 'error',
+        title: 'Invalid Promo Code',
+        text: 'The promo code you entered is not valid. Try HEALTH25 or LAB10.',
+        confirmButtonColor: '#0d9488',
+      });
     }
   };
 

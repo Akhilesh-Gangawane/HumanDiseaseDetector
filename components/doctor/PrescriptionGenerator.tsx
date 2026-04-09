@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Plus, Trash2, FileDown, Pill, SendToBack } from 'lucide-react';
+import Swal from 'sweetalert2';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -61,7 +62,13 @@ export default function PrescriptionGenerator() {
       doc.save(`${patientName ? patientName.toLowerCase().replace(/\s+/g, '_') : 'patient'}_prescription.pdf`);
       setIsGenerating(false);
       if (forwardToPharmacy) {
-        alert('Prescription PDF downloaded and successfully forwarded to Pharmacy!');
+        Swal.fire({
+          title: 'Forwarded to Pharmacy!',
+          text: 'Prescription PDF downloaded and successfully forwarded to Pharmacy.',
+          icon: 'success',
+          confirmButtonColor: '#2563eb',
+          draggable: true,
+        });
       }
     }, 1500);
   };

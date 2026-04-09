@@ -1,0 +1,36 @@
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.eggs/
+dist/
+build/
+.env
+.venv
+venv/
+env/
+.idea/
+.vscode/
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Large model files — exceed GitHub 100MB limit
+models/final_ensemble.joblib
+models/randomforest_graph.joblib
+models/linearsvc_onehot.joblib
+models/disease_resnet.pt
+
+# Raw training datasets
+Final_dataset.csv
+
+# Generated outputs
+eda_outputs/
+data_analysis/
+TECHNICAL_APPROACH.txt

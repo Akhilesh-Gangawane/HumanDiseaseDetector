@@ -11,7 +11,7 @@ export default function LoadingTransition() {
 
   useEffect(() => {
     setIsLoading(true)
-    const timer = setTimeout(() => setIsLoading(false), 1000)
+    const timer = setTimeout(() => setIsLoading(false), 400)
     return () => clearTimeout(timer)
   }, [pathname])
 
@@ -22,7 +22,7 @@ export default function LoadingTransition() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
+          transition={{ duration: 0.15 }}
           className="fixed inset-0 z-[9999] overflow-hidden"
         >
           <HeartbeatTransition />

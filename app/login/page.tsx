@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, lazy, Suspense } from 'react'
+import Swal from 'sweetalert2'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -36,7 +37,12 @@ export default function LoginPage() {
       }
     } else {
       if (formData.password !== formData.confirmPassword) {
-        alert('Passwords do not match!')
+        Swal.fire({
+          icon: 'error',
+          title: 'Password Mismatch',
+          text: 'Passwords do not match. Please try again.',
+          confirmButtonColor: '#3b82f6',
+        })
         return
       }
       // Redirect based on user role after signup
@@ -231,6 +237,7 @@ export default function LoginPage() {
               {/* Tabs */}
               <div className="flex gap-2 mb-8 bg-gray-100 p-1.5 rounded-xl">
                 <button
+                  type="button"
                   onClick={() => setActiveTab('signin')}
                   className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-all ${
                     activeTab === 'signin'
@@ -241,6 +248,7 @@ export default function LoginPage() {
                   Sign In
                 </button>
                 <button
+                  type="button"
                   onClick={() => setActiveTab('signup')}
                   className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-all ${
                     activeTab === 'signup'

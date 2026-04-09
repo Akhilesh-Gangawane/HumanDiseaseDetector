@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Search, Filter, Eye, Download, X } from 'lucide-react';
+import Swal from 'sweetalert2';
 import ProgressBar from './ProgressBar';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -54,7 +55,12 @@ export default function PatientManagement() {
       doc.save('patient_reports.pdf');
     } catch (err) {
       console.error("PDF Export failed:", err);
-      alert("Failed to export PDF. Please ensure your browser allows downloads.");
+      Swal.fire({
+        icon: 'error',
+        title: 'Export Failed',
+        text: 'Failed to export PDF. Please ensure your browser allows downloads.',
+        confirmButtonColor: '#2563eb',
+      });
     }
   };
 
