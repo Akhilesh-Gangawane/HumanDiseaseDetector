@@ -3,17 +3,14 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Video, Mic, MicOff, Camera, CameraOff, PhoneOff,
-  MonitorUp, Users, Calendar, Activity, Settings,
-  Maximize, MessageSquare, LayoutDashboard, ExternalLink
+  Video, Mic, Camera, Activity, Settings,
+  Users, Calendar, MessageSquare, Loader2
 } from 'lucide-react';
 import { useDoctorState } from './DoctorStateContext';
+import { openGoogleMeet } from '@/lib/videosdk';
 
 export default function ConsultDoctor() {
   const { appointments } = useDoctorState();
-  const [inCall, setInCall] = useState(false);
-  const [micActive, setMicActive] = useState(true);
-  const [camActive, setCamActive] = useState(true);
   const [activeTab, setActiveTab] = useState('upcoming');
   const [currentTime, setCurrentTime] = useState('');
 
@@ -25,115 +22,6 @@ export default function ConsultDoctor() {
   }, []);
 
   const upcomingAppointments = appointments.filter(apt => apt.mode === 'Online');
-
-  const handleStartMeeting = () => {
-    window.open('https://meet.google.com/new', '_blank');
-  };
-
-  if (inCall) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-black flex items-center justify-center p-4 md:p-6"
-      >
-        <div className="relative w-full max-w-7xl h-full max-h-[90vh] bg-gray-900 rounded-[2rem] overflow-hidden shadow-2xl border border-gray-800 flex flex-col">
-          <div className="absolute top-0 inset-x-0 h-24 bg-gradient-to-b from-black/80 to-transparent z-10 flex justify-between items-start p-6">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 bg-red-500/20 text-red-500 px-3 py-1.5 rounded-full backdrop-blur-md">
-                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-xs font-bold tracking-wider">REC 00:12:45</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <button type="button" className="p-2.5 bg-gray-800/60 hover:bg-gray-700/80 backdrop-blur-md text-white rounded-full transition-all" aria-label="Layout">
-                <LayoutDashboard className="w-5 h-5" />
-              </button>
-              <button type="button" className="p-2.5 bg-gray-800/60 hover:bg-gray-700/80 backdrop-blur-md text-white rounded-full transition-all" aria-label="Maximize">
-                <Maximize className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-
-          <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-4 p-4 pt-20 pb-28">
-            <div className="lg:col-span-3 relative bg-gray-800 rounded-3xl overflow-hidden border border-gray-700/50">
-              <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80" className="w-full h-full object-cover" alt="Patient video" />
-              <div className="absolute bottom-6 left-6 flex items-center gap-3">
-                <div className="bg-black/60 backdrop-blur-xl border border-white/10 px-4 py-2 rounded-2xl flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm">EP</div>
-                  <div>
-                    <h3 className="text-white font-semibold text-sm leading-tight">Eleanor Pena</h3>
-                    <p className="text-gray-400 text-xs">Patient</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="lg:col-span-1 flex flex-col gap-4">
-              <div className="relative h-64 bg-gray-800 rounded-3xl overflow-hidden border border-gray-700/50">
-                <img
-                  src="https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80"
-                  className={`w-full h-full object-cover transition-opacity duration-300 ${!camActive ? 'opacity-20 blur-md' : 'opacity-100'}`}
-                  alt="Self view"
-                />
-                {!camActive && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center shadow-lg">
-                      <CameraOff className="w-6 h-6 text-gray-400" />
-                    </div>
-                  </div>
-                )}
-                <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-xl text-white text-xs font-medium">You</div>
-              </div>
-
-              <div className="flex-1 bg-gray-800/80 backdrop-blur-2xl rounded-3xl border border-gray-700/50 p-5">
-                <h3 className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-blue-400" /> Live Vitals
-                </h3>
-                <div className="space-y-4">
-                  <div className="bg-gray-900/50 p-4 rounded-2xl border border-gray-700/50">
-                    <p className="text-gray-500 text-xs mb-1">Heart Rate</p>
-                    <p className="text-2xl font-black text-rose-400">76 <span className="text-sm font-medium text-rose-500/50">bpm</span></p>
-                  </div>
-                  <div className="bg-gray-900/50 p-4 rounded-2xl border border-gray-700/50">
-                    <p className="text-gray-500 text-xs mb-1">SpO2</p>
-                    <p className="text-2xl font-black text-blue-400">98 <span className="text-sm font-medium text-blue-500/50">%</span></p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="absolute bottom-0 inset-x-0 h-24 bg-gradient-to-t from-black to-transparent flex items-center justify-center pb-4 z-20">
-            <div className="bg-gray-800/80 backdrop-blur-2xl border border-gray-700/50 px-8 py-3 rounded-full flex items-center gap-4 shadow-2xl">
-              <button type="button" onClick={() => setMicActive(!micActive)} className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${micActive ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-red-500 hover:bg-red-600 text-white'}`} aria-label={micActive ? 'Mute' : 'Unmute'}>
-                {micActive ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
-              </button>
-              <button type="button" onClick={() => setCamActive(!camActive)} className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${camActive ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-red-500 hover:bg-red-600 text-white'}`} aria-label={camActive ? 'Turn off camera' : 'Turn on camera'}>
-                {camActive ? <Camera className="w-5 h-5" /> : <CameraOff className="w-5 h-5" />}
-              </button>
-              <div className="w-px h-8 bg-gray-700 mx-2" />
-              <button type="button" className="w-12 h-12 rounded-full bg-gray-700 hover:bg-gray-600 text-white flex items-center justify-center transition-all" aria-label="Share screen">
-                <MonitorUp className="w-5 h-5" />
-              </button>
-              <button type="button" className="w-12 h-12 rounded-full bg-gray-700 hover:bg-gray-600 text-white flex items-center justify-center transition-all relative" aria-label="Chat">
-                <MessageSquare className="w-5 h-5" />
-                <span className="absolute top-0 right-0 w-3 h-3 bg-blue-500 rounded-full border-2 border-gray-800" />
-              </button>
-              <button type="button" className="w-12 h-12 rounded-full bg-gray-700 hover:bg-gray-600 text-white flex items-center justify-center transition-all" aria-label="Settings">
-                <Settings className="w-5 h-5" />
-              </button>
-              <div className="w-px h-8 bg-gray-700 mx-2" />
-              <button type="button" onClick={() => setInCall(false)} className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 transition-all">
-                <PhoneOff className="w-5 h-5" /> End Session
-              </button>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-    );
-  }
 
   return (
     <div className="w-full p-6 md:p-8">
@@ -150,11 +38,11 @@ export default function ConsultDoctor() {
             <p className="text-sm text-gray-500 font-medium uppercase tracking-wider">Current Time</p>
             <p className="text-2xl font-bold text-gray-900">{currentTime || 'Loading...'}</p>
           </div>
-          <button type="button" onClick={handleStartMeeting} className="group relative px-6 py-4 bg-gray-900 text-white font-bold rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1">
+          <button type="button" onClick={openGoogleMeet} className="group relative px-6 py-4 bg-gray-900 text-white font-bold rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1">
             <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <div className="relative flex items-center gap-3">
-              <ExternalLink className="w-5 h-5" />
-              Start Google Meet
+              <Video className="w-5 h-5" />
+              Start Video Call
             </div>
           </button>
         </div>
@@ -209,7 +97,7 @@ export default function ConsultDoctor() {
                           {apt.status}
                         </span>
                       </div>
-                      <button type="button" onClick={handleStartMeeting} aria-label={`Start video call with ${apt.patientName}`} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${idx === 0 ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 group-hover:scale-110' : 'bg-gray-100 text-gray-600 group-hover:bg-indigo-100 group-hover:text-indigo-600'}`}>
+                      <button type="button" onClick={openGoogleMeet} aria-label={`Start video call with ${apt.patientName}`} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${idx === 0 ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 group-hover:scale-110' : 'bg-gray-100 text-gray-600 group-hover:bg-indigo-100 group-hover:text-indigo-600'}`}>
                         <Video className="w-5 h-5" />
                       </button>
                     </div>

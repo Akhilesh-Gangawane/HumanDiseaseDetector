@@ -1,7 +1,17 @@
 import type { Metadata, Viewport } from 'next'
+import { Inter } from 'next/font/google'
 import './globals.css'
+import '@/bones/registry'
 import LenisProvider from '@/components/LenisProvider'
 import LoadingTransition from '@/components/LoadingTransition'
+import SessionWrapper from '@/components/SessionWrapper'
+
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700', '800', '900'],
+  variable: '--font-inter',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: {
@@ -36,12 +46,14 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" className={inter.variable}>
+      <body className={inter.className}>
         <LoadingTransition />
-        <LenisProvider>
-          {children}
-        </LenisProvider>
+        <SessionWrapper>
+          <LenisProvider>
+            {children}
+          </LenisProvider>
+        </SessionWrapper>
       </body>
     </html>
   )

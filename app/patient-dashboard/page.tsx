@@ -1,5 +1,6 @@
 'use client';
 
+import { Skeleton } from 'boneyard-js/react';
 import PatientNavbar from '@/components/patient/PatientNavbar';
 import HeroSection from '@/components/patient/HeroSection';
 import FeatureCards from '@/components/patient/FeatureCards';
@@ -12,14 +13,22 @@ export default function PatientDashboard() {
   return (
     <NeuralNetworkContainer className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-white">
       <PatientNavbar />
-      
-      <HeroSection />
 
-      <FeatureCards />
+      <Skeleton name="patient-hero" loading={false} animate="shimmer">
+        <HeroSection />
+      </Skeleton>
 
-      <QuickAccessButtons />
+      <Skeleton name="patient-feature-cards" loading={false} animate="shimmer">
+        <FeatureCards />
+      </Skeleton>
 
-      <ServicesSection />
+      <Skeleton name="patient-quick-access" loading={false} animate="shimmer">
+        <QuickAccessButtons />
+      </Skeleton>
+
+      <Skeleton name="patient-services" loading={false} animate="shimmer">
+        <ServicesSection />
+      </Skeleton>
 
       <Footer />
     </NeuralNetworkContainer>

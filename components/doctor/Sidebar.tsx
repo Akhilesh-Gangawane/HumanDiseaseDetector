@@ -17,6 +17,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  BookOpen,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -37,6 +38,7 @@ const menuItems = [
   { id: 'prescriptions', label: 'Prescriptions', icon: FileText },
   { id: 'notifications', label: 'Notifications', icon: Bell, badge: 5 },
   { id: 'reports', label: 'Reports', icon: BarChart3 },
+  { id: 'diary', label: 'Clinical Diary', icon: BookOpen },
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];

@@ -23,7 +23,7 @@ const config: Config = {
         'sky-900': '#0C4A6E',
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        sans: ['var(--font-inter)', 'Inter', 'sans-serif'],
       },
       animation: {
         'fade-in': 'fadeIn 0.8s ease-out forwards',

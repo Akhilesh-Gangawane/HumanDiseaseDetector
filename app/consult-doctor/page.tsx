@@ -5,8 +5,9 @@ import OpdScroll from '@/components/patient/OpdScroll';
 import PatientNavbar from '@/components/patient/PatientNavbar';
 import NeuralNetworkContainer from '@/components/ui/NeuralNetworkContainer';
 import Footer from '@/components/patient/Footer';
-import { Video, MessageSquare, Calendar, User, Stethoscope, ArrowLeft, X, Clock, Star, Phone, Mail, MapPin, CheckCircle2, Send } from 'lucide-react';
+import { Video, MessageSquare, Calendar, User, Stethoscope, ArrowLeft, X, Star, Send } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { openGoogleMeet } from '@/lib/videosdk';
 
 // Doctor type definition
 interface Doctor {
@@ -122,7 +123,6 @@ export default function ConsultDoctorPage() {
   const heroRef = useRef<HTMLDivElement>(null);
   
   // Modal states
-  const [showVideoModal, setShowVideoModal] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
@@ -154,7 +154,7 @@ export default function ConsultDoctorPage() {
   }, [showDashboard]);
 
   const handleVideoConsult = () => {
-    setShowVideoModal(true);
+    openGoogleMeet();
   };
 
   const handleChatConsult = () => {
@@ -348,7 +348,7 @@ export default function ConsultDoctorPage() {
             <button 
               type="button" 
               onClick={handleVideoConsult}
-              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
             >
               Start Video Call
             </button>
@@ -443,55 +443,6 @@ export default function ConsultDoctorPage() {
           </div>
         </div>
       </div>
-
-      {/* Video Consultation Modal */}
-      {showVideoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl p-8">
-            <button
-              onClick={() => setShowVideoModal(false)}
-              aria-label="Close video consultation modal"
-              className="absolute top-6 right-6 p-2 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"
-            >
-              <X className="w-6 h-6 text-gray-700" />
-            </button>
-            
-            <div className="flex items-center space-x-4 mb-6">
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                <Video className="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800">Video Consultation</h2>
-                <p className="text-gray-600 text-sm">Connect with a doctor via video call</p>
-              </div>
-            </div>
-
-            <div className="bg-gray-900 rounded-2xl aspect-video flex items-center justify-center mb-6">
-              <div className="text-center text-white">
-                <Video className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                <p className="text-lg">Video call will start here</p>
-                <p className="text-sm text-gray-400 mt-2">Camera and microphone access required</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                type="button"
-                onClick={() => setShowVideoModal(false)}
-                className="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
-              >
-                Start Call
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Chat Modal */}
       {showChatModal && (

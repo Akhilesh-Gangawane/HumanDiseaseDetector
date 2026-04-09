@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
 import dynamic from 'next/dynamic';
 import { ArrowLeft, Loader2 } from 'lucide-react';
+import { Skeleton } from 'boneyard-js/react';
 import DoctorNavbar from '@/components/doctor/DoctorNavbar';
 import DoctorHero from '@/components/doctor/DoctorHero';
 import DoctorFeatureCards from '@/components/doctor/DoctorFeatureCards';
@@ -10,21 +11,25 @@ import NeuralNetworkContainer from '@/components/ui/NeuralNetworkContainer';
 import Footer from '@/components/patient/Footer';
 
 // Lazy-load heavy tab components — only fetched when the tab is first opened
-const DashboardOverview = dynamic(() => import('@/components/doctor/DashboardOverview'), { loading: () => <TabLoader /> });
-const PatientManagement = dynamic(() => import('@/components/doctor/PatientManagement'), { loading: () => <TabLoader /> });
-const AIPredictionReview = dynamic(() => import('@/components/doctor/AIPredictionReview'), { loading: () => <TabLoader /> });
-const MedicineReview = dynamic(() => import('@/components/doctor/MedicineReview'), { loading: () => <TabLoader /> });
-const ConsultDoctor = dynamic(() => import('@/components/doctor/ConsultDoctor'), { loading: () => <TabLoader /> });
-const ProgressTracker = dynamic(() => import('@/components/doctor/ProgressTracker'), { loading: () => <TabLoader /> });
-const PrescriptionGenerator = dynamic(() => import('@/components/doctor/PrescriptionGenerator'), { loading: () => <TabLoader /> });
-const ReportsAnalytics = dynamic(() => import('@/components/doctor/ReportsAnalytics'), { loading: () => <TabLoader /> });
-const AppointmentsPage = dynamic(() => import('@/components/doctor/AppointmentsPage'), { loading: () => <TabLoader /> });
-const ProfilePage = dynamic(() => import('@/components/doctor/ProfilePage'), { loading: () => <TabLoader /> });
-const SettingsPage = dynamic(() => import('@/components/doctor/SettingsPage'), { loading: () => <TabLoader /> });
-const LabPathology = dynamic(() => import('@/components/doctor/LabPathology'), { loading: () => <TabLoader /> });
-const NotificationsPage = dynamic(() => import('@/components/doctor/NotificationsPage'), { loading: () => <TabLoader /> });
+const DashboardOverview = dynamic(() => import('@/components/doctor/DashboardOverview'), { loading: () => <TabFallback /> });
+const PatientManagement = dynamic(() => import('@/components/doctor/PatientManagement'), { loading: () => <TabFallback /> });
+const AIPredictionReview = dynamic(() => import('@/components/doctor/AIPredictionReview'), { loading: () => <TabFallback /> });
+const MedicineReview = dynamic(() => import('@/components/doctor/MedicineReview'), { loading: () => <TabFallback /> });
+const ConsultDoctor = dynamic(() => import('@/components/doctor/ConsultDoctor'), { loading: () => <TabFallback /> });
+const ProgressTracker = dynamic(() => import('@/components/doctor/ProgressTracker'), { loading: () => <TabFallback /> });
+const PrescriptionGenerator = dynamic(() => import('@/components/doctor/PrescriptionGenerator'), { loading: () => <TabFallback /> });
+const ReportsAnalytics = dynamic(() => import('@/components/doctor/ReportsAnalytics'), { loading: () => <TabFallback /> });
+const AppointmentsPage = dynamic(() => import('@/components/doctor/AppointmentsPage'), { loading: () => <TabFallback /> });
+const ProfilePage = dynamic(() => import('@/components/doctor/ProfilePage'), { loading: () => <TabFallback /> });
+const SettingsPage = dynamic(() => import('@/components/doctor/SettingsPage'), { loading: () => <TabFallback /> });
+const LabPathology = dynamic(() => import('@/components/doctor/LabPathology'), { loading: () => <TabFallback /> });
+const NotificationsPage = dynamic(() => import('@/components/doctor/NotificationsPage'), { loading: () => <TabFallback /> });
+const DiaryPage = dynamic(
+  () => import('@/components/DiaryPage').then(m => ({ default: () => <m.default role="doctor" /> })),
+  { loading: () => <TabFallback /> }
+);
 
-function TabLoader() {
+function TabFallback() {
   return (
     <div className="flex items-center justify-center min-h-[50vh]">
       <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
@@ -46,6 +51,7 @@ const TAB_COMPONENTS: Record<string, React.ComponentType> = {
   profile: ProfilePage,
   settings: SettingsPage,
   notifications: NotificationsPage,
+  diary: DiaryPage,
 };
 
 export default function DoctorDashboard() {
@@ -84,9 +90,16 @@ export default function DoctorDashboard() {
               <span className="font-semibold text-sm">Back to Dashboard Home</span>
             </button>
             <div className="bg-white/80 backdrop-blur-md rounded-3xl shadow-xl border border-white/60 overflow-hidden min-h-[70vh]">
-              <Suspense fallback={<TabLoader />}>
-                <TabContent />
-              </Suspense>
+              <Skeleton
+                name={`doctor-tab-${activeTab}`}
+                loading={false}
+                animate="shimmer"
+                fallback={<TabFallback />}
+              >
+                <Suspense fallback={<TabFallback />}>
+                  <TabContent />
+                </Suspense>
+              </Skeleton>
             </div>
           </div>
         )}
