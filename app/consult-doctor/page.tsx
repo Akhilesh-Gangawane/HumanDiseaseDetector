@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import OpdScroll from '@/components/patient/OpdScroll';
 import PatientNavbar from '@/components/patient/PatientNavbar';
 import NeuralNetworkContainer from '@/components/ui/NeuralNetworkContainer';
 import Footer from '@/components/patient/Footer';
-import { Video, MessageSquare, Calendar, User, Stethoscope, ArrowLeft, X, Star, Send } from 'lucide-react';
+import { Video, MessageSquare, Calendar, User, Stethoscope, ArrowLeft, X, Star, Send, ChevronLeft, ChevronRight, Link2, CheckCircle2, Clock, CalendarCheck, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { openGoogleMeet } from '@/lib/videosdk';
 
@@ -118,6 +119,7 @@ const DOCTORS: Doctor[] = [
 
 export default function ConsultDoctorPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [showDashboard, setShowDashboard] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const heroRef = useRef<HTMLDivElement>(null);
@@ -132,9 +134,63 @@ export default function ConsultDoctorPage() {
   const [appointmentDate, setAppointmentDate] = useState('');
   const [appointmentTime, setAppointmentTime] = useState('');
   const [appointmentReason, setAppointmentReason] = useState('');
+  const [consultationType, setConsultationType] = useState<'online' | 'inperson'>('online');
+  const [meetLink, setMeetLink] = useState('');
+  const [calendarEventLink, setCalendarEventLink] = useState('');
+  const [calendarLoading, setCalendarLoading] = useState(false);
+  const [calendarError, setCalendarError] = useState('');
   const [chatMessage, setChatMessage] = useState('');
   const [chatMessages, setChatMessages] = useState<Array<{sender: 'user' | 'doctor', text: string}>>([]);
   const [bookingSuccess, setBookingSuccess] = useState(false);
+
+  // Calendar state
+  const today = new Date();
+  const [calendarMonth, setCalendarMonth] = useState(today.getMonth());
+  const [calendarYear, setCalendarYear] = useState(today.getFullYear());
+
+  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const DAY_NAMES = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+  function getCalendarDays(year: number, month: number) {
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const days: (number | null)[] = Array(firstDay).fill(null);
+    for (let d = 1; d <= daysInMonth; d++) days.push(d);
+    return days;
+  }
+
+  function handleCalendarDayClick(day: number) {
+    const d = new Date(calendarYear, calendarMonth, day);
+    const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    if (d < todayMidnight) return;
+    const iso = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    setAppointmentDate(iso);
+  }
+
+  function isPastDay(day: number) {
+    const d = new Date(calendarYear, calendarMonth, day);
+    const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    return d < todayMidnight;
+  }
+
+  function isSelectedDay(day: number) {
+    const iso = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return appointmentDate === iso;
+  }
+
+  function isToday(day: number) {
+    return calendarYear === today.getFullYear() && calendarMonth === today.getMonth() && day === today.getDate();
+  }
+
+  function prevMonth() {
+    if (calendarMonth === 0) { setCalendarMonth(11); setCalendarYear(y => y - 1); }
+    else setCalendarMonth(m => m - 1);
+  }
+
+  function nextMonth() {
+    if (calendarMonth === 11) { setCalendarMonth(0); setCalendarYear(y => y + 1); }
+    else setCalendarMonth(m => m + 1);
+  }
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -191,18 +247,84 @@ export default function ConsultDoctorPage() {
     }
   };
 
-  const handleSubmitAppointment = () => {
-    if (appointmentDate && appointmentTime && appointmentReason) {
-      setBookingSuccess(true);
-      setTimeout(() => {
-        setShowAppointmentModal(false);
-        setBookingSuccess(false);
-        setAppointmentDate('');
-        setAppointmentTime('');
-        setAppointmentReason('');
-        setSelectedDoctor(null);
-      }, 2000);
+  const handleSubmitAppointment = async () => {
+    if (!appointmentDate || !appointmentTime || !appointmentReason) return;
+
+    let generatedMeetLink = '';
+    if (consultationType === 'online') {
+      const code = Math.random().toString(36).substring(2, 5) + '-' +
+                   Math.random().toString(36).substring(2, 5) + '-' +
+                   Math.random().toString(36).substring(2, 5);
+      generatedMeetLink = `https://meet.google.com/${code}`;
+      setMeetLink(generatedMeetLink);
+    } else {
+      setMeetLink('');
     }
+
+    setBookingSuccess(true);
+    setCalendarError('');
+    setCalendarEventLink('');
+
+    // Add to Google Calendar if signed in
+    if (session) {
+      setCalendarLoading(true);
+      try {
+        // Parse date + time into ISO datetime
+        const [year, month, day] = appointmentDate.split('-').map(Number);
+        // Convert slot time like "10:30 AM" to 24h
+        const parseTime = (t: string) => {
+          const match = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+          if (match) {
+            let h = parseInt(match[1]);
+            const m = parseInt(match[2]);
+            const period = match[3].toUpperCase();
+            if (period === 'PM' && h !== 12) h += 12;
+            if (period === 'AM' && h === 12) h = 0;
+            return { h, m };
+          }
+          // fallback for HH:MM format
+          const [h, m] = t.split(':').map(Number);
+          return { h, m };
+        };
+        const { h, m } = parseTime(appointmentTime);
+        const start = new Date(year, month - 1, day, h, m);
+        const end = new Date(start.getTime() + 30 * 60 * 1000); // 30 min slot
+
+        const res = await fetch('/api/calendar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            summary: `Appointment with ${selectedDoctor?.name ?? 'Doctor'} — ${selectedDoctor?.specialty ?? ''}`,
+            description: `Reason: ${appointmentReason}\nType: ${consultationType === 'online' ? 'Online Video Consultation' : 'In-Person Visit'}`,
+            startDateTime: start.toISOString(),
+            endDateTime: end.toISOString(),
+            meetLink: generatedMeetLink,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setCalendarEventLink(data.eventLink);
+        } else {
+          setCalendarError(data.error || 'Could not add to Google Calendar');
+        }
+      } catch {
+        setCalendarError('Could not add to Google Calendar');
+      } finally {
+        setCalendarLoading(false);
+      }
+    }
+
+    setTimeout(() => {
+      setShowAppointmentModal(false);
+      setBookingSuccess(false);
+      setAppointmentDate('');
+      setAppointmentTime('');
+      setAppointmentReason('');
+      setMeetLink('');
+      setCalendarEventLink('');
+      setCalendarError('');
+      setSelectedDoctor(null);
+    }, 10000);
   };
 
   if (!showDashboard) {
@@ -554,18 +676,74 @@ export default function ConsultDoctorPage() {
                 )}
 
                 <div className="space-y-4">
+                  {/* Consultation Type Toggle */}
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Select Date
-                    </label>
-                    <input
-                      type="date"
-                      value={appointmentDate}
-                      onChange={(e) => setAppointmentDate(e.target.value)}
-                      min={new Date().toISOString().split('T')[0]}
-                      aria-label="Select appointment date"
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                    />
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Consultation Type</label>
+                    <div className="flex bg-gray-100 p-1 rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => setConsultationType('online')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all ${consultationType === 'online' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                      >
+                        <Video className="w-4 h-4" /> Online (Video)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConsultationType('inperson')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all ${consultationType === 'inperson' ? 'bg-white text-purple-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                      >
+                        <User className="w-4 h-4" /> In-Person
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Calendar */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Select Date</label>
+                    <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50">
+                      {/* Calendar Header */}
+                      <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100">
+                        <button type="button" onClick={prevMonth} aria-label="Previous month" className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+                          <ChevronLeft className="w-5 h-5 text-gray-600" />
+                        </button>
+                        <span className="font-semibold text-gray-800">{MONTH_NAMES[calendarMonth]} {calendarYear}</span>
+                        <button type="button" onClick={nextMonth} aria-label="Next month" className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+                          <ChevronRight className="w-5 h-5 text-gray-600" />
+                        </button>
+                      </div>
+                      {/* Day names */}
+                      <div className="grid grid-cols-7 text-center px-2 pt-2">
+                        {DAY_NAMES.map(d => (
+                          <div key={d} className="text-xs font-semibold text-gray-400 py-1">{d}</div>
+                        ))}
+                      </div>
+                      {/* Days grid */}
+                      <div className="grid grid-cols-7 text-center px-2 pb-3 gap-y-1">
+                        {getCalendarDays(calendarYear, calendarMonth).map((day, i) => (
+                          <div key={i} className="flex items-center justify-center">
+                            {day === null ? <span /> : (
+                              <button
+                                type="button"
+                                onClick={() => handleCalendarDayClick(day)}
+                                disabled={isPastDay(day)}
+                                className={`w-8 h-8 rounded-full text-sm font-medium transition-all
+                                  ${isSelectedDay(day) ? 'bg-purple-600 text-white shadow-md' :
+                                    isToday(day) ? 'border-2 border-purple-400 text-purple-700' :
+                                    isPastDay(day) ? 'text-gray-300 cursor-not-allowed' :
+                                    'hover:bg-purple-50 text-gray-700'}`}
+                              >
+                                {day}
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {appointmentDate && (
+                      <p className="text-xs text-purple-600 font-medium mt-1 ml-1">
+                        Selected: {new Date(appointmentDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -608,7 +786,7 @@ export default function ConsultDoctorPage() {
                       value={appointmentReason}
                       onChange={(e) => setAppointmentReason(e.target.value)}
                       placeholder="Describe your symptoms or reason for consultation..."
-                      rows={4}
+                      rows={3}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all resize-none"
                     />
                   </div>
@@ -642,18 +820,62 @@ export default function ConsultDoctorPage() {
                 </div>
                 <h3 className="text-2xl font-bold text-gray-800 mb-2">Booking Confirmed!</h3>
                 <p className="text-gray-600 mb-4">Your appointment has been successfully scheduled</p>
-                <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-left max-w-md mx-auto">
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-left max-w-md mx-auto space-y-2">
                   {selectedDoctor && (
-                    <p className="text-sm text-gray-700 mb-2">
+                    <p className="text-sm text-gray-700">
                       <span className="font-semibold">Doctor:</span> {selectedDoctor.name}
                     </p>
                   )}
-                  <p className="text-sm text-gray-700 mb-2">
-                    <span className="font-semibold">Date:</span> {appointmentDate}
+                  <p className="text-sm text-gray-700">
+                    <span className="font-semibold">Date:</span> {appointmentDate && new Date(appointmentDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                   </p>
                   <p className="text-sm text-gray-700">
                     <span className="font-semibold">Time:</span> {appointmentTime}
                   </p>
+                  <p className="text-sm text-gray-700">
+                    <span className="font-semibold">Type:</span> {consultationType === 'online' ? 'Online (Video)' : 'In-Person'}
+                  </p>
+                  {consultationType === 'online' && meetLink && (
+                    <div className="mt-3 pt-3 border-t border-green-200">
+                      <p className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1">
+                        <Video className="w-4 h-4 text-blue-600" /> Meet Link
+                      </p>
+                      <a
+                        href={meetLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors w-full justify-center"
+                      >
+                        <Link2 className="w-4 h-4" />
+                        Join Google Meet
+                      </a>
+                      <p className="text-xs text-gray-500 mt-2 break-all text-center">{meetLink}</p>
+                    </div>
+                  )}
+
+                  {/* Google Calendar section */}
+                  <div className="mt-3 pt-3 border-t border-green-200">
+                    {!session ? (
+                      <p className="text-xs text-gray-500 text-center">Sign in with Google to auto-add this to your calendar.</p>
+                    ) : calendarLoading ? (
+                      <div className="flex items-center justify-center gap-2 text-sm text-gray-500 py-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Adding to Google Calendar...
+                      </div>
+                    ) : calendarEventLink ? (
+                      <a
+                        href={calendarEventLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors w-full justify-center"
+                      >
+                        <CalendarCheck className="w-4 h-4" />
+                        View in Google Calendar
+                      </a>
+                    ) : calendarError ? (
+                      <p className="text-xs text-red-500 text-center">{calendarError}</p>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             )}

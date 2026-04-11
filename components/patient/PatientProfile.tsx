@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   User, Mail, Phone, MapPin, Calendar, Heart, Activity, 
   FileText, Edit2, Save, X, Camera, Shield, Clock, 
   Droplet, Scale, Ruler, AlertCircle, CheckCircle2, ArrowLeft
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-
+import { useSession } from 'next-auth/react';
 interface PatientInfo {
   // Personal Information
   firstName: string;
@@ -44,37 +44,34 @@ interface PatientInfo {
 }
 
 const initialPatientData: PatientInfo = {
-  firstName: 'John',
-  lastName: 'Doe',
-  email: 'john.doe@example.com',
-  phone: '+1 (555) 123-4567',
-  dateOfBirth: '1990-05-15',
-  gender: 'Male',
-  bloodGroup: 'O+',
-  
-  address: '123 Healthcare Street',
-  city: 'New York',
-  state: 'NY',
-  zipCode: '10001',
-  country: 'United States',
-  
-  height: '175',
-  weight: '70',
-  allergies: ['Penicillin', 'Peanuts'],
-  chronicConditions: ['Hypertension'],
-  currentMedications: ['Lisinopril 10mg'],
-  
-  emergencyContactName: 'Jane Doe',
-  emergencyContactPhone: '+1 (555) 987-6543',
-  emergencyContactRelation: 'Spouse',
-  
-  insuranceProvider: 'HealthCare Plus',
-  insuranceNumber: 'HCP123456789',
-  policyHolder: 'John Doe'
+  firstName: '',
+  lastName: '',
+  email: '',
+  phone: '',
+  dateOfBirth: '',
+  gender: '',
+  bloodGroup: '',
+  address: '',
+  city: '',
+  state: '',
+  zipCode: '',
+  country: '',
+  height: '',
+  weight: '',
+  allergies: [],
+  chronicConditions: [],
+  currentMedications: [],
+  emergencyContactName: '',
+  emergencyContactPhone: '',
+  emergencyContactRelation: '',
+  insuranceProvider: '',
+  insuranceNumber: '',
+  policyHolder: '',
 };
 
 export default function PatientProfile() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [isEditing, setIsEditing] = useState(false);
   const [patientData, setPatientData] = useState<PatientInfo>(initialPatientData);
   const [editedData, setEditedData] = useState<PatientInfo>(initialPatientData);
@@ -82,6 +79,49 @@ export default function PatientProfile() {
   const [newAllergy, setNewAllergy] = useState('');
   const [newCondition, setNewCondition] = useState('');
   const [newMedication, setNewMedication] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  // Load user + patient data via API route (uses service role, bypasses RLS)
+  useEffect(() => {
+    if (!session?.user?.email) return;
+    const fetchProfile = async () => {
+      setLoading(true);
+      const res = await fetch('/api/user/profile');
+      if (!res.ok) { setLoading(false); return; }
+      const { user: userRow, patient: patientRow } = await res.json();
+
+      const nameParts = (userRow.full_name ?? '').split(' ');
+      const merged: PatientInfo = {
+        firstName: patientRow?.first_name ?? nameParts[0] ?? '',
+        lastName: patientRow?.last_name ?? nameParts.slice(1).join(' ') ?? '',
+        email: userRow.email ?? '',
+        phone: patientRow?.phone ?? '',
+        dateOfBirth: patientRow?.date_of_birth ?? '',
+        gender: patientRow?.gender ?? '',
+        bloodGroup: patientRow?.blood_group ?? '',
+        address: patientRow?.address ?? '',
+        city: patientRow?.city ?? '',
+        state: patientRow?.state ?? '',
+        zipCode: patientRow?.zip_code ?? '',
+        country: patientRow?.country ?? '',
+        height: patientRow?.height_cm?.toString() ?? '',
+        weight: patientRow?.weight_kg?.toString() ?? '',
+        allergies: patientRow?.allergies ?? [],
+        chronicConditions: patientRow?.chronic_conditions ?? [],
+        currentMedications: patientRow?.current_medications ?? [],
+        emergencyContactName: patientRow?.emergency_contact_name ?? '',
+        emergencyContactPhone: patientRow?.emergency_contact_phone ?? '',
+        emergencyContactRelation: patientRow?.emergency_contact_relation ?? '',
+        insuranceProvider: patientRow?.insurance_provider ?? '',
+        insuranceNumber: patientRow?.insurance_number ?? '',
+        policyHolder: patientRow?.policy_holder ?? '',
+      };
+      setPatientData(merged);
+      setEditedData(merged);
+      setLoading(false);
+    };
+    fetchProfile();
+  }, [session]);
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -93,11 +133,43 @@ export default function PatientProfile() {
     setEditedData(patientData);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setPatientData(editedData);
     setIsEditing(false);
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 3000);
+
+    await fetch('/api/user/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        full_name: `${editedData.firstName} ${editedData.lastName}`.trim(),
+        patient: {
+          first_name: editedData.firstName,
+          last_name: editedData.lastName,
+          phone: editedData.phone,
+          date_of_birth: editedData.dateOfBirth,
+          gender: editedData.gender,
+          blood_group: editedData.bloodGroup,
+          address: editedData.address,
+          city: editedData.city,
+          state: editedData.state,
+          zip_code: editedData.zipCode,
+          country: editedData.country,
+          height_cm: editedData.height ? parseFloat(editedData.height) : null,
+          weight_kg: editedData.weight ? parseFloat(editedData.weight) : null,
+          allergies: editedData.allergies,
+          chronic_conditions: editedData.chronicConditions,
+          current_medications: editedData.currentMedications,
+          emergency_contact_name: editedData.emergencyContactName,
+          emergency_contact_phone: editedData.emergencyContactPhone,
+          emergency_contact_relation: editedData.emergencyContactRelation,
+          insurance_provider: editedData.insuranceProvider,
+          insurance_number: editedData.insuranceNumber,
+          policy_holder: editedData.policyHolder,
+        },
+      }),
+    });
   };
 
   const handleInputChange = (field: keyof PatientInfo, value: string) => {
@@ -147,11 +219,23 @@ export default function PatientProfile() {
   const bmi = calculateBMI(data.height, data.weight);
   const age = calculateAge(data.dateOfBirth);
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-teal-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Loading your profile...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-teal-50 pt-20 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Back Button */}
         <button
+          type="button"
           onClick={() => router.push('/patient-dashboard')}
           className="mb-6 flex items-center space-x-2 px-4 py-2 bg-white hover:bg-gray-50 rounded-xl shadow-sm border border-gray-200 transition-all duration-300 group"
         >
@@ -212,6 +296,7 @@ export default function PatientProfile() {
             <div className="flex space-x-3">
               {!isEditing ? (
                 <button
+                  type="button"
                   onClick={handleEdit}
                   className="px-6 py-3 bg-gradient-to-r from-blue-500 to-teal-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-300 flex items-center space-x-2"
                 >
@@ -221,6 +306,7 @@ export default function PatientProfile() {
               ) : (
                 <>
                   <button
+                    type="button"
                     onClick={handleCancel}
                     className="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-all duration-300 flex items-center space-x-2"
                   >
@@ -228,6 +314,7 @@ export default function PatientProfile() {
                     <span>Cancel</span>
                   </button>
                   <button
+                    type="button"
                     onClick={handleSave}
                     className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-300 flex items-center space-x-2"
                   >
@@ -465,6 +552,7 @@ export default function PatientProfile() {
                       <span>{allergy}</span>
                       {isEditing && (
                         <button
+                          type="button"
                           onClick={() => removeItem('allergies', index)}
                           className="hover:bg-red-200 rounded-full p-1"
                           aria-label={`Remove ${allergy}`}
@@ -486,6 +574,7 @@ export default function PatientProfile() {
                       className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                     <button
+                      type="button"
                       onClick={() => addItem('allergies', newAllergy)}
                       className="px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
                     >
@@ -507,6 +596,7 @@ export default function PatientProfile() {
                       <span>{condition}</span>
                       {isEditing && (
                         <button
+                          type="button"
                           onClick={() => removeItem('chronicConditions', index)}
                           className="hover:bg-yellow-200 rounded-full p-1"
                           aria-label={`Remove ${condition}`}
@@ -528,6 +618,7 @@ export default function PatientProfile() {
                       className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                     <button
+                      type="button"
                       onClick={() => addItem('chronicConditions', newCondition)}
                       className="px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
                     >
@@ -549,6 +640,7 @@ export default function PatientProfile() {
                       <span>{medication}</span>
                       {isEditing && (
                         <button
+                          type="button"
                           onClick={() => removeItem('currentMedications', index)}
                           className="hover:bg-green-200 rounded-full p-1"
                           aria-label={`Remove ${medication}`}
@@ -570,6 +662,7 @@ export default function PatientProfile() {
                       className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                     <button
+                      type="button"
                       onClick={() => addItem('currentMedications', newMedication)}
                       className="px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
                     >

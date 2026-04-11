@@ -4,13 +4,19 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { Menu, X, User, Settings, LogOut, Bell } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useSession, signOut } from 'next-auth/react';
 import { useDoctorState } from './DoctorStateContext';
 
 export default function DoctorNavbar({ activeTab, setActiveTab }: { activeTab: string, setActiveTab: (tab: string) => void }) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
     const router = useRouter();
+    const { data: session, status } = useSession();
     const { notifications } = useDoctorState();
+
+    const doctorName = status === 'loading' ? '...' : (session?.user?.name ?? 'Doctor');
+    const doctorEmail = session?.user?.email ?? '';
+    const doctorImage = session?.user?.image ?? null;
 
     const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -20,7 +26,7 @@ export default function DoctorNavbar({ activeTab, setActiveTab }: { activeTab: s
     };
 
     const handleLogout = () => {
-        router.push('/');
+        signOut({ callbackUrl: '/login' });
     };
 
     return (
@@ -63,17 +69,19 @@ export default function DoctorNavbar({ activeTab, setActiveTab }: { activeTab: s
 
                         <div className="relative">
                             <button type="button" onClick={() => setProfileDropdownOpen(!profileDropdownOpen)} className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center">
-                                    <User className="w-5 h-5 text-white" />
+                                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center overflow-hidden">
+                                    {doctorImage
+                                        ? <Image src={doctorImage} alt={doctorName} width={32} height={32} className="object-cover w-full h-full rounded-full" />
+                                        : <User className="w-5 h-5 text-white" />}
                                 </div>
-                                <span className="text-sm font-medium text-gray-700">Dr. Sarah Johnson</span>
+                                <span className="text-sm font-medium text-gray-700">{doctorName}</span>
                             </button>
 
                             {profileDropdownOpen && (
                                 <div className="absolute right-0 mt-2 w-56 backdrop-blur-md bg-white/90 rounded-xl shadow-lg border border-white/20 py-2 animate-fade-in">
                                     <div className="px-4 py-3 border-b border-gray-200">
-                                        <p className="text-sm font-semibold text-gray-800">Dr. Sarah Johnson</p>
-                                        <p className="text-xs text-gray-600">Cardiologist</p>
+                                        <p className="text-sm font-semibold text-gray-800">{doctorName}</p>
+                                        <p className="text-xs text-gray-600">{doctorEmail}</p>
                                     </div>
                                     <button type="button" onClick={() => { handleNavClick('profile'); setProfileDropdownOpen(false); }} className="w-full flex items-center space-x-2 px-4 py-2 hover:bg-gray-100 transition-colors">
                                         <User className="w-4 h-4 text-gray-600" />
@@ -105,12 +113,14 @@ export default function DoctorNavbar({ activeTab, setActiveTab }: { activeTab: s
                 <div className="md:hidden backdrop-blur-md bg-white/90 border-t border-white/20">
                     <div className="px-4 py-4 space-y-3">
                         <div className="flex items-center space-x-3 pb-3 border-b border-gray-200">
-                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center">
-                                <User className="w-6 h-6 text-white" />
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center overflow-hidden">
+                                {doctorImage
+                                    ? <Image src={doctorImage} alt={doctorName} width={40} height={40} className="object-cover w-full h-full rounded-full" />
+                                    : <User className="w-6 h-6 text-white" />}
                             </div>
                             <div>
-                                <p className="text-sm font-semibold text-gray-800">Dr. Sarah Johnson</p>
-                                <p className="text-xs text-gray-600">Cardiologist</p>
+                                <p className="text-sm font-semibold text-gray-800">{doctorName}</p>
+                                <p className="text-xs text-gray-600">{doctorEmail}</p>
                             </div>
                         </div>
                         <button type="button" onClick={() => handleNavClick('dashboard')} className={`block w-full text-left py-2 font-medium ${activeTab === 'dashboard' ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'}`}>Dashboard</button>

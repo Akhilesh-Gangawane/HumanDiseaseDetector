@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Package, Pill, FlaskConical, Stethoscope, User, Settings, Heart, TrendingUp } from 'lucide-react';
+import { Package, Pill, FlaskConical, Stethoscope, FileText, Bell } from 'lucide-react';
 
 export default function QuickAccessButtons() {
   const router = useRouter();
@@ -15,7 +15,7 @@ export default function QuickAccessButtons() {
       bgColor: 'bg-blue-50',
       iconColor: 'text-blue-600',
       route: '/patient-dashboard/orders',
-      badge: '3 Active'
+      badge: null
     },
     {
       title: 'Buy Medicine',
@@ -46,7 +46,27 @@ export default function QuickAccessButtons() {
       iconColor: 'text-orange-600',
       route: '/consult-doctor',
       badge: null
-    }
+    },
+    {
+      title: 'Health Records',
+      description: 'View doctor-shared records',
+      icon: <FileText className="w-6 h-6" />,
+      color: 'from-teal-500 to-cyan-500',
+      bgColor: 'bg-teal-50',
+      iconColor: 'text-teal-600',
+      route: '/patient-dashboard/records',
+      badge: null
+    },
+    {
+      title: 'Notifications',
+      description: 'Updates from your doctor',
+      icon: <Bell className="w-6 h-6" />,
+      color: 'from-indigo-500 to-blue-500',
+      bgColor: 'bg-indigo-50',
+      iconColor: 'text-indigo-600',
+      route: '/patient-dashboard/notifications',
+      badge: null
+    },
   ];
 
   return (
@@ -59,7 +79,7 @@ export default function QuickAccessButtons() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {quickActions.map((action, index) => (
             <button
               key={index}

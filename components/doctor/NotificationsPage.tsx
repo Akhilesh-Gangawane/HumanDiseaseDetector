@@ -17,21 +17,41 @@ export default function NotificationsPage() {
         }
     };
 
-    const markAsRead = (id: number) => {
+    const markAsRead = async (id: string) => {
         setNotifications(notifications.map(n => n.id === id ? { ...n, read: true } : n));
+        await fetch('/api/doctor/notifications', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, read: true }),
+        });
     };
 
-    const deleteNotification = (id: number, e: React.MouseEvent) => {
+    const deleteNotification = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
         setNotifications(notifications.filter(n => n.id !== id));
+        await fetch('/api/doctor/notifications', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, delete: true }),
+        });
     };
 
-    const markAllAsRead = () => {
+    const markAllAsRead = async () => {
         setNotifications(notifications.map(n => ({ ...n, read: true })));
+        await fetch('/api/doctor/notifications', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ markAllRead: true }),
+        });
     };
 
-    const clearAll = () => {
+    const clearAll = async () => {
         setNotifications([]);
+        await fetch('/api/doctor/notifications', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ clearAll: true }),
+        });
     };
 
     return (

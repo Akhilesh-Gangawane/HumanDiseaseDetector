@@ -3,13 +3,15 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Menu, X, User, Settings, LogOut, Bell, Shield, ChevronDown, Home, Stethoscope, Brain } from 'lucide-react';
+import { Menu, X, User, Settings, LogOut, Bell, Shield, ChevronDown, Home, Stethoscope, Brain, FileText } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
+import { useSession, signOut } from 'next-auth/react';
 
 const NAV_LINKS = [
   { label: 'Home', href: '/patient-dashboard', icon: Home },
   { label: 'Disease Prediction', href: '/disease-prediction', icon: Brain },
   { label: 'Consult Doctor', href: '/consult-doctor', icon: Stethoscope },
+  { label: 'Health Records', href: '/patient-dashboard/records', icon: FileText },
 ];
 
 export default function PatientNavbar() {
@@ -18,6 +20,11 @@ export default function PatientNavbar() {
   const profileRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const pathname = usePathname();
+  const { data: session, status } = useSession();
+
+  const userName = status === 'loading' ? '...' : (session?.user?.name ?? 'Guest');
+  const userEmail = session?.user?.email ?? '';
+  const userImage = session?.user?.image ?? null;
 
   // Close profile dropdown on outside click
   useEffect(() => {
@@ -98,18 +105,20 @@ export default function PatientNavbar() {
                 onClick={() => setProfileOpen(!profileOpen)}
                 className="flex items-center gap-2 pl-2 pr-3 py-1.5 hover:bg-gray-100 rounded-lg transition-colors"
               >
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center shrink-0">
-                  <User className="w-4 h-4 text-white" />
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center shrink-0 overflow-hidden">
+                  {userImage
+                    ? <Image src={userImage} alt={userName} width={32} height={32} className="object-cover w-full h-full rounded-full" />
+                    : <User className="w-4 h-4 text-white" />}
                 </div>
-                <span className="text-sm font-medium text-gray-700">John Doe</span>
+                <span className="text-sm font-medium text-gray-700">{userName}</span>
                 <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${profileOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {profileOpen && (
                 <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-gray-100 py-1.5 z-50">
                   <div className="px-4 py-2.5 border-b border-gray-100">
-                    <p className="text-sm font-semibold text-gray-800">John Doe</p>
-                    <p className="text-xs text-gray-500">john.doe@email.com</p>
+                    <p className="text-sm font-semibold text-gray-800">{userName}</p>
+                    <p className="text-xs text-gray-500">{userEmail}</p>
                   </div>
                   <Link href="/patient-dashboard/profile" onClick={() => setProfileOpen(false)}
                     className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
@@ -120,7 +129,7 @@ export default function PatientNavbar() {
                     <Settings className="w-4 h-4 text-gray-400" /> Settings
                   </Link>
                   <hr className="my-1 border-gray-100" />
-                  <Link href="/login" onClick={() => setProfileOpen(false)}
+                  <Link href="/login" onClick={() => { setProfileOpen(false); signOut({ callbackUrl: '/login' }); }}
                     className="flex items-center gap-2.5 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
                     <LogOut className="w-4 h-4" /> Logout
                   </Link>
@@ -147,12 +156,14 @@ export default function PatientNavbar() {
           <div className="px-4 py-4 space-y-1">
             {/* User info */}
             <div className="flex items-center gap-3 p-3 mb-2 bg-gray-50 rounded-xl">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center shrink-0">
-                <User className="w-5 h-5 text-white" />
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center shrink-0 overflow-hidden">
+                {userImage
+                  ? <Image src={userImage} alt={userName} width={40} height={40} className="object-cover w-full h-full rounded-full" />
+                  : <User className="w-5 h-5 text-white" />}
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-800">John Doe</p>
-                <p className="text-xs text-gray-500">john.doe@email.com</p>
+                <p className="text-sm font-semibold text-gray-800">{userName}</p>
+                <p className="text-xs text-gray-500">{userEmail}</p>
               </div>
             </div>
 
@@ -204,7 +215,7 @@ export default function PatientNavbar() {
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
               <Settings className="w-4 h-4 text-gray-400" /> Settings
             </Link>
-            <Link href="/login" onClick={() => setMobileOpen(false)}
+            <Link href="/login" onClick={() => { setMobileOpen(false); signOut({ callbackUrl: '/login' }); }}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
               <LogOut className="w-4 h-4" /> Logout
             </Link>

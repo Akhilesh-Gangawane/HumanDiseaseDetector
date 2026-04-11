@@ -19,6 +19,7 @@ export default function LoginPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
   const [userRole, setUserRole] = useState<'doctor' | 'patient'>('patient')
+  const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -26,32 +27,32 @@ export default function LoginPage() {
     confirmPassword: '',
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (activeTab === 'signin') {
-      // Redirect based on user role
-      if (userRole === 'doctor') {
-        router.push('/dashboard')
-      } else {
-        router.push('/patient-dashboard')
-      }
-    } else {
-      if (formData.password !== formData.confirmPassword) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Password Mismatch',
-          text: 'Passwords do not match. Please try again.',
-          confirmButtonColor: '#3b82f6',
-        })
-        return
-      }
-      // Redirect based on user role after signup
-      if (userRole === 'doctor') {
-        router.push('/dashboard')
-      } else {
-        router.push('/patient-dashboard')
-      }
+
+    if (activeTab === 'signup' && formData.password !== formData.confirmPassword) {
+      Swal.fire({ icon: 'error', title: 'Password Mismatch', text: 'Passwords do not match.', confirmButtonColor: '#3b82f6' })
+      return
     }
+
+    setLoading(true)
+    const result = await signIn('credentials', {
+      redirect: false,
+      email: formData.email,
+      password: formData.password,
+      name: formData.name,
+      role: userRole,
+      isSignUp: activeTab === 'signup' ? 'true' : 'false',
+    })
+    setLoading(false)
+
+    if (result?.error) {
+      Swal.fire({ icon: 'error', title: 'Authentication Failed', text: result.error, confirmButtonColor: '#3b82f6' })
+      return
+    }
+
+    // Redirect based on selected role
+    router.push(userRole === 'doctor' ? '/dashboard' : '/patient-dashboard')
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -415,10 +416,12 @@ export default function LoginPage() {
 
                   <motion.button
                     type="submit"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="w-full py-4 bg-gradient-to-r from-blue-500 to-teal-500 text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-xl transition-all"
+                    disabled={loading}
+                    whileHover={{ scale: loading ? 1 : 1.02 }}
+                    whileTap={{ scale: loading ? 1 : 0.98 }}
+                    className="w-full py-4 bg-gradient-to-r from-blue-500 to-teal-500 text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
+                    {loading && <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
                     {activeTab === 'signin' ? 'Sign In' : 'Create Account'}
                   </motion.button>
                 </motion.form>
@@ -441,7 +444,7 @@ export default function LoginPage() {
                   whileTap={{ scale: 0.98 }}
                   type="button"
                   onClick={() => signIn('google', {
-                    callbackUrl: userRole === 'doctor' ? '/dashboard' : '/patient-dashboard'
+                    callbackUrl: '/auth/callback',
                   })}
                   className="flex items-center justify-center gap-3 px-4 py-3.5 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all bg-white/50 backdrop-blur-sm"
                 >

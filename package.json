@@ -11,7 +11,10 @@
   "dependencies": {
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
+    "@supabase/supabase-js": "^2.103.0",
+    "@types/bcryptjs": "^2.4.6",
     "animejs": "^4.3.6",
+    "bcryptjs": "^3.0.3",
     "boneyard-js": "^1.6.4",
     "framer-motion": "^11.3.19",
     "jspdf": "^4.2.0",

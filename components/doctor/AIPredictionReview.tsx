@@ -16,7 +16,7 @@ interface PredictionResult {
 }
 
 export default function AIPredictionReview() {
-  const { predictions, setPredictions, addNotification } = useDoctorState();
+  const { predictions, setPredictions, addNotification, patients } = useDoctorState();
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -27,7 +27,7 @@ export default function AIPredictionReview() {
   const [error, setError] = useState<string | null>(null);
 
   // Expanded card state
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const handlePredict = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,8 +59,28 @@ export default function AIPredictionReview() {
 
       setLiveResult(result);
 
-      const newPrediction = {
-        id: Date.now(),
+      // Persist to DB
+      const matchedPatient = patients.find(p =>
+        p.name.toLowerCase() === patientName.toLowerCase()
+      );
+
+      const saveRes = await fetch('/api/doctor/predictions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientName,
+          patientId: matchedPatient?.userId ?? null,
+          disease: result.prediction,
+          confidence: result.confidence,
+          symptoms: selectedSymptoms.map((s) => s.display),
+          explanation: `${result.method} · ${selectedSymptoms.length} symptoms`,
+        }),
+      });
+
+      const saved = saveRes.ok ? (await saveRes.json()).prediction : null;
+
+      const newPrediction = saved ?? {
+        id: `temp-${Date.now()}`,
         patient: patientName,
         disease: result.prediction,
         confidence: result.confidence,
@@ -90,8 +110,17 @@ export default function AIPredictionReview() {
     setShowForm(false);
   };
 
-  const updateStatus = (id: number, status: 'Approved' | 'Modified') => {
+  const updateStatus = async (id: string, status: 'Approved' | 'Modified') => {
+    // Optimistic update
     setPredictions(predictions.map((p) => (p.id === id ? { ...p, status } : p)));
+
+    // Persist
+    await fetch('/api/doctor/predictions', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, status }),
+    });
+
     const p = predictions.find((p) => p.id === id);
     if (status === 'Approved' && p) {
       addNotification({ title: 'Prediction Approved', message: `Approved prediction for ${p.patient}`, type: 'system' });

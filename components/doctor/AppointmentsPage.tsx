@@ -5,10 +5,10 @@ import { Calendar as CalendarIcon, Clock, CheckCircle, XCircle, Plus, Search } f
 import { useDoctorState, Appointment } from './DoctorStateContext';
 
 export default function AppointmentsPage() {
-  const { appointments, setAppointments, addNotification } = useDoctorState();
+  const { appointments, setAppointments, addNotification, patients } = useDoctorState();
   const [activeTab, setActiveTab] = useState<'All' | 'Confirmed' | 'Pending' | 'Cancelled'>('All');
   const [isScheduling, setIsScheduling] = useState(false);
-  const [newAppt, setNewAppt] = useState({ patientName: '', date: '', time: '', type: 'Consultation', mode: 'Offline' as 'Online' | 'Offline' });
+  const [newAppt, setNewAppt] = useState({ patientName: '', patientId: '', date: '', time: '', type: 'Consultation', mode: 'Offline' as 'Online' | 'Offline' });
 
   const filteredAppointments = appointments.filter(apt =>
     activeTab === 'All' ? true : apt.status === activeTab
@@ -23,8 +23,16 @@ export default function AppointmentsPage() {
     }
   };
 
-  const handleUpdateStatus = (id: number, status: 'Confirmed' | 'Cancelled') => {
+  const handleUpdateStatus = async (id: string, status: 'Confirmed' | 'Cancelled') => {
+    // Optimistic update
     setAppointments(appointments.map(apt => apt.id === id ? { ...apt, status } : apt));
+
+    await fetch('/api/doctor/appointments', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, status }),
+    });
+
     const target = appointments.find(a => a.id === id);
     if (target) {
       addNotification({
@@ -35,30 +43,36 @@ export default function AppointmentsPage() {
     }
   };
 
-  const handleScheduleSubmit = (e: React.FormEvent) => {
+  const handleScheduleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAppt.patientName || !newAppt.date || !newAppt.time) return;
 
-    const newAppointment: Appointment = {
-      id: Date.now(),
-      patientName: newAppt.patientName,
-      date: newAppt.date,
-      time: newAppt.time,
-      type: newAppt.type,
-      mode: newAppt.mode,
-      status: 'Confirmed',
-      avatar: newAppt.patientName.split(' ')[0]
-    };
+    // Try to resolve patientId from known patients
+    const matchedPatient = patients.find(p =>
+      p.name.toLowerCase() === newAppt.patientName.toLowerCase()
+    );
 
-    setAppointments([...appointments, newAppointment]);
-    addNotification({
-      title: 'New Appointment Scheduled',
-      message: `Scheduled ${newAppt.type} for ${newAppt.patientName}`,
-      type: 'appointment'
+    const res = await fetch('/api/doctor/appointments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...newAppt,
+        patientId: matchedPatient?.userId ?? null,
+      }),
     });
 
+    if (res.ok) {
+      const { appointment } = await res.json();
+      setAppointments(prev => [...prev, appointment]);
+      addNotification({
+        title: 'New Appointment Scheduled',
+        message: `Scheduled ${newAppt.type} for ${newAppt.patientName}`,
+        type: 'appointment'
+      });
+    }
+
     setIsScheduling(false);
-    setNewAppt({ patientName: '', date: '', time: '', type: 'Consultation', mode: 'Offline' });
+    setNewAppt({ patientName: '', patientId: '', date: '', time: '', type: 'Consultation', mode: 'Offline' });
   };
 
   return (
@@ -86,15 +100,31 @@ export default function AppointmentsPage() {
               <label htmlFor="appt-patient" className="block text-sm font-semibold text-gray-700 mb-2">Patient Name</label>
               <div className="relative">
                 <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  id="appt-patient"
-                  type="text"
-                  required
-                  placeholder="Search patient..."
-                  value={newAppt.patientName}
-                  onChange={(e) => setNewAppt({ ...newAppt, patientName: e.target.value })}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                {patients.length > 0 ? (
+                  <select
+                    id="appt-patient"
+                    required
+                    value={newAppt.patientName}
+                    onChange={(e) => {
+                      const p = patients.find(p => p.name === e.target.value);
+                      setNewAppt({ ...newAppt, patientName: e.target.value, patientId: p?.userId ?? '' });
+                    }}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select patient...</option>
+                    {patients.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                  </select>
+                ) : (
+                  <input
+                    id="appt-patient"
+                    type="text"
+                    required
+                    placeholder="Enter patient name..."
+                    value={newAppt.patientName}
+                    onChange={(e) => setNewAppt({ ...newAppt, patientName: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                )}
               </div>
             </div>
             <div>

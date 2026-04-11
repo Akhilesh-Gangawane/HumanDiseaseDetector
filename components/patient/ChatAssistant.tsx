@@ -22,7 +22,7 @@ interface ChatAssistantProps {
   initialContext?: ChatContext;
 }
 
-const API_URL = 'http://localhost:8000';
+const API_URL = '/api/chat';
 
 export default function ChatAssistant({ initialContext }: ChatAssistantProps) {
   const welcomeText = initialContext
@@ -38,12 +38,20 @@ export default function ChatAssistant({ initialContext }: ChatAssistantProps) {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Check backend health on mount
+  useEffect(() => {
+    fetch('/api/predict', { method: 'GET' })
+      .then(r => setBackendOnline(r.ok))
+      .catch(() => setBackendOnline(false));
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -95,7 +103,7 @@ export default function ChatAssistant({ initialContext }: ChatAssistantProps) {
         };
       }
 
-      const res = await fetch(`${API_URL}/chat`, {
+      const res = await fetch(`${API_URL}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -141,8 +149,8 @@ export default function ChatAssistant({ initialContext }: ChatAssistantProps) {
           <p className="text-xs text-gray-500">{initialContext ? `Context: ${initialContext.disease}` : 'RAG-powered symptom analysis'}</p>
         </div>
         <div className="ml-auto flex items-center space-x-1.5">
-          <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-          <span className="text-xs text-gray-500">Online</span>
+          <span className={`w-2 h-2 rounded-full ${backendOnline === null ? 'bg-yellow-400 animate-pulse' : backendOnline ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} />
+          <span className="text-xs text-gray-500">{backendOnline === null ? 'Checking...' : backendOnline ? 'Online' : 'Offline'}</span>
         </div>
       </div>
 

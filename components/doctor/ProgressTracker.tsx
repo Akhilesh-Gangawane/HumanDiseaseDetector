@@ -21,19 +21,29 @@ export default function ProgressTracker() {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const latestMetric = patientMetrics[0];
 
-  const handleSaveVitals = (e: React.FormEvent) => {
+  const handleSaveVitals = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentPatient) return;
-    const metric = {
-      id: `M${Date.now()}`,
-      patientId: currentPatient.id,
-      date: newVitals.date,
-      heartRate: parseInt(newVitals.heartRate) || 0,
-      bloodPressure: { systolic: parseInt(newVitals.bpSys) || 0, diastolic: parseInt(newVitals.bpDia) || 0 },
-      glucose: parseInt(newVitals.glucose) || 0,
-      temperature: parseFloat(newVitals.temp) || 0
-    };
-    setMetrics(prev => [metric, ...prev]);
+
+    const res = await fetch('/api/doctor/vitals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        patientId: currentPatient.id,
+        date: newVitals.date,
+        heartRate: newVitals.heartRate,
+        bpSys: newVitals.bpSys,
+        bpDia: newVitals.bpDia,
+        glucose: newVitals.glucose,
+        temp: newVitals.temp,
+      }),
+    });
+
+    if (res.ok) {
+      const { metric } = await res.json();
+      setMetrics(prev => [metric, ...prev]);
+    }
+
     setShowVitalsModal(false);
     setNewVitals({ date: new Date().toISOString().split('T')[0], heartRate: '', bpSys: '', bpDia: '', glucose: '', temp: '' });
   };

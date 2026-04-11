@@ -5,6 +5,7 @@ import { Plus, Trash2, FileDown, Pill, SendToBack } from 'lucide-react';
 import Swal from 'sweetalert2';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { useDoctorState } from './DoctorStateContext';
 
 interface Medicine {
   id: number;
@@ -14,6 +15,7 @@ interface Medicine {
 }
 
 export default function PrescriptionGenerator() {
+  const { patients } = useDoctorState();
   const [patientName, setPatientName] = useState('');
   const [patientAge, setPatientAge] = useState('');
   const [prescriptionDate, setPrescriptionDate] = useState('');
@@ -22,8 +24,27 @@ export default function PrescriptionGenerator() {
   const [forwardToPharmacy, setForwardToPharmacy] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     setIsGenerating(true);
+
+    // Save to DB and notify patient
+    const validMeds = medicines.filter(m => m.name.trim() !== '');
+    const matchedPatient = patients.find(p =>
+      p.name.toLowerCase() === patientName.toLowerCase()
+    );
+    if (validMeds.length > 0 && patientName) {
+      await fetch('/api/doctor/prescriptions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientName,
+          patientId: matchedPatient?.userId ?? null,
+          medicines: validMeds.map(m => ({ name: m.name, dosage: m.dosage, frequency: m.duration })),
+          notes: advice,
+        }),
+      });
+    }
+
     setTimeout(() => {
       const doc = new jsPDF();
       doc.setFontSize(22);
