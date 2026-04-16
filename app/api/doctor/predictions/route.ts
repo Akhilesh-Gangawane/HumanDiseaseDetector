@@ -18,11 +18,25 @@ export async function GET() {
   const doctorId = await getDoctorId(session.user.email)
   if (!doctorId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { data, error } = await supabaseServer
-    .from('ai_predictions')
-    .select('*')
-    .eq('doctor_id', doctorId)
-    .order('created_at', { ascending: false })
+  // Get assigned patient IDs
+  const { data: links } = await supabaseServer
+    .from('doctor_patients').select('patient_id').eq('doctor_id', doctorId)
+  const patientIds = (links ?? []).map(l => l.patient_id)
+
+  let data, error
+  if (patientIds.length > 0) {
+    ;({ data, error } = await supabaseServer
+      .from('ai_predictions')
+      .select('*')
+      .or(`doctor_id.eq.${doctorId},and(initiated_by.eq.patient,patient_id.in.(${patientIds.join(',')}))`)
+      .order('created_at', { ascending: false }))
+  } else {
+    ;({ data, error } = await supabaseServer
+      .from('ai_predictions')
+      .select('*')
+      .eq('doctor_id', doctorId)
+      .order('created_at', { ascending: false }))
+  }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
@@ -34,6 +48,7 @@ export async function GET() {
     symptoms: p.symptoms ?? [],
     explanation: p.explanation ?? '',
     status: p.status,
+    initiatedBy: p.initiated_by ?? 'doctor',
   }))
 
   return NextResponse.json({ predictions })

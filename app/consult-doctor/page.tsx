@@ -250,11 +250,12 @@ export default function ConsultDoctorPage() {
   const handleSubmitAppointment = async () => {
     if (!appointmentDate || !appointmentTime || !appointmentReason) return;
 
+    // Use our proper meet code generator
     let generatedMeetLink = '';
     if (consultationType === 'online') {
-      const code = Math.random().toString(36).substring(2, 5) + '-' +
-                   Math.random().toString(36).substring(2, 5) + '-' +
-                   Math.random().toString(36).substring(2, 5);
+      const seg = (len: number) =>
+        Array.from({ length: len }, () => 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)]).join('');
+      const code = `${seg(3)}-${seg(4)}-${seg(3)}`;
       generatedMeetLink = `https://meet.google.com/${code}`;
       setMeetLink(generatedMeetLink);
     } else {
@@ -264,6 +265,22 @@ export default function ConsultDoctorPage() {
     setBookingSuccess(true);
     setCalendarError('');
     setCalendarEventLink('');
+
+    // Save appointment to DB — includes meet_link so patient can rejoin anytime
+    await fetch('/api/patient/appointments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        doctorName: selectedDoctor?.name ?? null,
+        doctorId: null,
+        date: appointmentDate,
+        time: appointmentTime,
+        type: 'Consultation',
+        mode: consultationType === 'online' ? 'Online' : 'Offline',
+        reason: appointmentReason,
+        meetLink: generatedMeetLink || null,
+      }),
+    }).catch(() => { /* non-critical */ });
 
     // Add to Google Calendar if signed in
     if (session) {

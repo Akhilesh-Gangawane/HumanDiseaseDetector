@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowLeft, FlaskConical, Brain, Activity, Pill, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, FlaskConical, Brain, Activity, Pill, Loader2, ChevronDown, ChevronUp, Video, Link2 } from 'lucide-react';
 import PatientNavbar from '@/components/patient/PatientNavbar';
 import Footer from '@/components/patient/Footer';
 import NeuralNetworkContainer from '@/components/ui/NeuralNetworkContainer';
@@ -11,27 +11,30 @@ interface Prediction { id: string; disease: string; confidence: number; symptoms
 interface LabTest { id: string; testName: string; status: string; priority: string; diagnosisReason: string; labValues: { name: string; value: string; unit: string; referenceRange: string; status: string }[]; requestDate: string; doctorName: string; }
 interface Vital { id: string; date: string; heartRate: number; bloodPressure: { systolic: number; diastolic: number }; glucose: number; temperature: number; }
 interface Prescription { id: string; medicines: { name: string; dosage: string; frequency: string }[]; notes: string; issuedDate: string; doctorName: string; }
+interface Recording { id: string; title: string; recordingUrl: string; durationMins: number | null; notes: string; doctorName: string; appointmentDate: string; appointmentTime: string; appointmentType: string; createdAt: string; }
 
 export default function PatientRecordsPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<'predictions' | 'labs' | 'vitals' | 'prescriptions'>('predictions');
+  const [tab, setTab] = useState<'predictions' | 'labs' | 'vitals' | 'prescriptions' | 'recordings'>('predictions');
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [labTests, setLabTests] = useState<LabTest[]>([]);
   const [vitals, setVitals] = useState<Vital[]>([]);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [recordings, setRecordings] = useState<Recording[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/patient/records')
-      .then(r => r.json())
-      .then(d => {
-        setPredictions(d.predictions ?? []);
-        setLabTests(d.labTests ?? []);
-        setVitals(d.vitals ?? []);
-        setPrescriptions(d.prescriptions ?? []);
-      })
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetch('/api/patient/records').then(r => r.json()),
+      fetch('/api/patient/recordings').then(r => r.json()),
+    ]).then(([records, recs]) => {
+      setPredictions(records.predictions ?? []);
+      setLabTests(records.labTests ?? []);
+      setVitals(records.vitals ?? []);
+      setPrescriptions(records.prescriptions ?? []);
+      setRecordings(recs.recordings ?? []);
+    }).finally(() => setLoading(false));
   }, []);
 
   const statusColor = (s: string) => {
@@ -53,6 +56,7 @@ export default function PatientRecordsPage() {
     { key: 'labs' as const, label: 'Lab Tests', icon: FlaskConical, count: labTests.length },
     { key: 'vitals' as const, label: 'Vitals', icon: Activity, count: vitals.length },
     { key: 'prescriptions' as const, label: 'Prescriptions', icon: Pill, count: prescriptions.length },
+    { key: 'recordings' as const, label: 'Recordings', icon: Video, count: recordings.length },
   ];
 
   return (
@@ -245,6 +249,41 @@ export default function PatientRecordsPage() {
                       )}
                     </div>
                   )}
+                </div>
+              ))
+            )}
+
+            {/* Recordings */}
+            {tab === 'recordings' && (
+              recordings.length === 0 ? <EmptyState icon={Video} label="No recordings shared yet" /> :
+              recordings.map(r => (
+                <div key={r.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                  <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div className="flex items-start gap-4 flex-1">
+                      <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
+                        <Video className="w-6 h-6 text-indigo-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-gray-900 text-lg">{r.title}</h3>
+                        <p className="text-sm text-gray-500 mt-0.5">By {r.doctorName}</p>
+                        <div className="flex items-center gap-4 text-sm text-gray-500 mt-1 flex-wrap">
+                          {r.appointmentDate && <span>{r.appointmentDate} {r.appointmentTime}</span>}
+                          {r.durationMins && <span>{r.durationMins} min</span>}
+                          {r.appointmentType && <span className="text-gray-400">{r.appointmentType}</span>}
+                        </div>
+                        {r.notes && <p className="text-sm text-gray-500 mt-1 italic">{r.notes}</p>}
+                      </div>
+                    </div>
+                    <a
+                      href={r.recordingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg hover:-translate-y-0.5 transition-all text-sm"
+                    >
+                      <Link2 className="w-4 h-4" />
+                      Watch Recording
+                    </a>
+                  </div>
                 </div>
               ))
             )}

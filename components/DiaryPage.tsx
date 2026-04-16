@@ -1,14 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   BookOpen, Plus, Trash2, Edit3, Save, X,
-  Calendar, Tag, Search, ChevronDown,
+  Calendar, Tag, Search, ChevronDown, Loader2,
 } from 'lucide-react'
 
 interface DiaryEntry {
-  id: number
+  id: string
   date: string
   title: string
   content: string
@@ -23,31 +23,38 @@ const MOOD_COLOR = {
   bad: 'bg-red-100 text-red-700 border-red-200',
 }
 
-const INITIAL_ENTRIES: DiaryEntry[] = [
-  {
-    id: 1,
-    date: new Date().toISOString().split('T')[0],
-    title: 'First consultation notes',
-    content: 'Patient reported mild headache and fatigue. Prescribed rest and hydration. Follow-up in 1 week.',
-    tags: ['consultation', 'follow-up'],
-    mood: 'neutral',
-  },
-]
-
 interface DiaryPageProps {
   role: 'doctor' | 'patient'
 }
 
 export default function DiaryPage({ role }: DiaryPageProps) {
-  const [entries, setEntries] = useState<DiaryEntry[]>(INITIAL_ENTRIES)
+  const [entries, setEntries] = useState<DiaryEntry[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<DiaryEntry | null>(null)
   const [isNew, setIsNew] = useState(false)
   const [tagInput, setTagInput] = useState('')
-  const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/patient/diary')
+      .then(r => r.json())
+      .then(d => setEntries(
+        (d.entries ?? []).map((e: DiaryEntry) => ({
+          id: e.id,
+          date: e.date,
+          title: e.title,
+          content: e.content ?? '',
+          tags: e.tags ?? [],
+          mood: e.mood ?? 'neutral',
+        }))
+      ))
+      .finally(() => setLoading(false))
+  }, [])
 
   const blank: DiaryEntry = {
-    id: Date.now(),
+    id: '',
     date: new Date().toISOString().split('T')[0],
     title: '',
     content: '',
@@ -55,36 +62,49 @@ export default function DiaryPage({ role }: DiaryPageProps) {
     mood: 'neutral',
   }
 
-  const filtered = entries.filter(
-    (e) =>
-      e.title.toLowerCase().includes(search.toLowerCase()) ||
-      e.content.toLowerCase().includes(search.toLowerCase()) ||
-      e.tags.some((t) => t.toLowerCase().includes(search.toLowerCase()))
+  const filtered = entries.filter(e =>
+    e.title.toLowerCase().includes(search.toLowerCase()) ||
+    e.content.toLowerCase().includes(search.toLowerCase()) ||
+    e.tags.some(t => t.toLowerCase().includes(search.toLowerCase()))
   )
 
-  const startNew = () => {
-    setEditing({ ...blank, id: Date.now() })
-    setIsNew(true)
-    setTagInput('')
-  }
+  const startNew = () => { setEditing({ ...blank }); setIsNew(true); setTagInput('') }
+  const startEdit = (entry: DiaryEntry) => { setEditing({ ...entry }); setIsNew(false); setTagInput('') }
 
-  const startEdit = (entry: DiaryEntry) => {
-    setEditing({ ...entry })
-    setIsNew(false)
-    setTagInput('')
-  }
-
-  const save = () => {
+  const save = async () => {
     if (!editing || !editing.title.trim()) return
-    if (isNew) {
-      setEntries([editing, ...entries])
-    } else {
-      setEntries(entries.map((e) => (e.id === editing.id ? editing : e)))
+    setSaving(true)
+    try {
+      if (isNew) {
+        const res = await fetch('/api/patient/diary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: editing.date, title: editing.title, content: editing.content, tags: editing.tags, mood: editing.mood }),
+        })
+        const { entry } = await res.json()
+        setEntries(prev => [{ ...editing, id: entry.id }, ...prev])
+      } else {
+        await fetch('/api/patient/diary', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editing.id, date: editing.date, title: editing.title, content: editing.content, tags: editing.tags, mood: editing.mood }),
+        })
+        setEntries(prev => prev.map(e => e.id === editing.id ? editing : e))
+      }
+    } finally {
+      setSaving(false)
+      setEditing(null)
     }
-    setEditing(null)
   }
 
-  const remove = (id: number) => setEntries(entries.filter((e) => e.id !== id))
+  const remove = async (id: string) => {
+    setEntries(prev => prev.filter(e => e.id !== id))
+    await fetch('/api/patient/diary', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+  }
 
   const addTag = () => {
     if (!editing || !tagInput.trim()) return
@@ -96,7 +116,15 @@ export default function DiaryPage({ role }: DiaryPageProps) {
 
   const removeTag = (tag: string) => {
     if (!editing) return
-    setEditing({ ...editing, tags: editing.tags.filter((t) => t !== tag) })
+    setEditing({ ...editing, tags: editing.tags.filter(t => t !== tag) })
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+      </div>
+    )
   }
 
   return (
@@ -112,7 +140,7 @@ export default function DiaryPage({ role }: DiaryPageProps) {
               {role === 'doctor' ? 'Clinical Diary' : 'Health Diary'}
             </h1>
           </div>
-          <p className="text-gray-500 ml-13 pl-1">
+          <p className="text-gray-500 pl-1">
             {role === 'doctor'
               ? 'Personal notes, observations and case summaries'
               : 'Track your symptoms, moods and health journey'}
@@ -134,7 +162,7 @@ export default function DiaryPage({ role }: DiaryPageProps) {
           type="text"
           placeholder="Search entries..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={e => setSearch(e.target.value)}
           className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
         />
       </div>
@@ -143,57 +171,38 @@ export default function DiaryPage({ role }: DiaryPageProps) {
       <AnimatePresence>
         {editing && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
           >
             <motion.div
-              initial={{ scale: 0.95, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 20 }}
+              initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
               className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">
-                  {isNew ? 'New Entry' : 'Edit Entry'}
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => setEditing(null)}
-                  aria-label="Close editor"
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                >
+                <h2 className="text-2xl font-bold text-gray-900">{isNew ? 'New Entry' : 'Edit Entry'}</h2>
+                <button type="button" onClick={() => setEditing(null)} aria-label="Close editor" className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                   <X className="w-5 h-5 text-gray-500" />
                 </button>
               </div>
 
               <div className="space-y-5">
-                {/* Date + Mood */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Date</label>
                     <input
-                      type="date"
-                      value={editing.date}
-                      onChange={(e) => setEditing({ ...editing, date: e.target.value })}
-                      aria-label="Entry date"
+                      type="date" value={editing.date} aria-label="Entry date"
+                      onChange={e => setEditing({ ...editing, date: e.target.value })}
                       className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Mood</label>
                     <div className="flex gap-2">
-                      {(['good', 'neutral', 'bad'] as const).map((m) => (
+                      {(['good', 'neutral', 'bad'] as const).map(m => (
                         <button
-                          key={m}
-                          type="button"
+                          key={m} type="button"
                           onClick={() => setEditing({ ...editing, mood: m })}
-                          className={`flex-1 py-2 rounded-xl border-2 text-lg transition-all ${
-                            editing.mood === m
-                              ? MOOD_COLOR[m] + ' border-current scale-105'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
+                          className={`flex-1 py-2 rounded-xl border-2 text-lg transition-all ${editing.mood === m ? MOOD_COLOR[m] + ' border-current scale-105' : 'border-gray-200 hover:border-gray-300'}`}
                         >
                           {MOOD_EMOJI[m]}
                         </button>
@@ -202,43 +211,30 @@ export default function DiaryPage({ role }: DiaryPageProps) {
                   </div>
                 </div>
 
-                {/* Title */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Title</label>
                   <input
-                    type="text"
-                    placeholder="Entry title..."
-                    value={editing.title}
-                    onChange={(e) => setEditing({ ...editing, title: e.target.value })}
+                    type="text" placeholder="Entry title..." value={editing.title}
+                    onChange={e => setEditing({ ...editing, title: e.target.value })}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
 
-                {/* Content */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Notes</label>
                   <textarea
-                    rows={6}
-                    placeholder={
-                      role === 'doctor'
-                        ? 'Clinical observations, treatment notes...'
-                        : 'How are you feeling today? Any symptoms?'
-                    }
-                    value={editing.content}
-                    onChange={(e) => setEditing({ ...editing, content: e.target.value })}
+                    rows={6} value={editing.content}
+                    placeholder={role === 'doctor' ? 'Clinical observations, treatment notes...' : 'How are you feeling today? Any symptoms?'}
+                    onChange={e => setEditing({ ...editing, content: e.target.value })}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                   />
                 </div>
 
-                {/* Tags */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Tags</label>
                   <div className="flex gap-2 mb-2 flex-wrap">
-                    {editing.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="flex items-center gap-1 px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm"
-                      >
+                    {editing.tags.map(tag => (
+                      <span key={tag} className="flex items-center gap-1 px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm">
                         {tag}
                         <button type="button" onClick={() => removeTag(tag)} aria-label={`Remove tag ${tag}`}>
                           <X className="w-3 h-3" />
@@ -248,40 +244,27 @@ export default function DiaryPage({ role }: DiaryPageProps) {
                   </div>
                   <div className="flex gap-2">
                     <input
-                      type="text"
-                      placeholder="Add tag..."
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && addTag()}
-                      aria-label="Add tag"
+                      type="text" placeholder="Add tag..." value={tagInput} aria-label="Add tag"
+                      onChange={e => setTagInput(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && addTag()}
                       className="flex-1 px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                     />
-                    <button
-                      type="button"
-                      onClick={addTag}
-                      className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-xl hover:bg-indigo-200 transition-colors text-sm font-semibold"
-                    >
+                    <button type="button" onClick={addTag} className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-xl hover:bg-indigo-200 transition-colors text-sm font-semibold">
                       Add
                     </button>
                   </div>
                 </div>
 
-                {/* Actions */}
                 <div className="flex gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditing(null)}
-                    className="flex-1 py-3 border border-gray-200 rounded-xl font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
+                  <button type="button" onClick={() => setEditing(null)} className="flex-1 py-3 border border-gray-200 rounded-xl font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
                     Cancel
                   </button>
                   <button
-                    type="button"
-                    onClick={save}
-                    disabled={!editing.title.trim()}
+                    type="button" onClick={save} disabled={!editing.title.trim() || saving}
                     className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                   >
-                    <Save className="w-4 h-4" /> Save Entry
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    {saving ? 'Saving...' : 'Save Entry'}
                   </button>
                 </div>
               </div>
@@ -299,18 +282,13 @@ export default function DiaryPage({ role }: DiaryPageProps) {
           </div>
         )}
         <AnimatePresence>
-          {filtered.map((entry) => (
+          {filtered.map(entry => (
             <motion.div
               key={entry.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
               className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden"
             >
-              <div
-                className="p-5 cursor-pointer"
-                onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
-              >
+              <div className="p-5 cursor-pointer" onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}>
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1">
@@ -318,9 +296,7 @@ export default function DiaryPage({ role }: DiaryPageProps) {
                       <h3 className="font-bold text-gray-900 truncate">{entry.title}</h3>
                     </div>
                     <div className="flex items-center gap-3 text-sm text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5" /> {entry.date}
-                      </span>
+                      <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {entry.date}</span>
                       {entry.tags.length > 0 && (
                         <span className="flex items-center gap-1">
                           <Tag className="w-3.5 h-3.5" />
@@ -331,25 +307,13 @@ export default function DiaryPage({ role }: DiaryPageProps) {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); startEdit(entry) }}
-                      aria-label={`Edit entry: ${entry.title}`}
-                      className="p-2 hover:bg-indigo-50 text-indigo-600 rounded-lg transition-colors"
-                    >
+                    <button type="button" onClick={e => { e.stopPropagation(); startEdit(entry) }} aria-label={`Edit entry: ${entry.title}`} className="p-2 hover:bg-indigo-50 text-indigo-600 rounded-lg transition-colors">
                       <Edit3 className="w-4 h-4" />
                     </button>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); remove(entry.id) }}
-                      aria-label={`Delete entry: ${entry.title}`}
-                      className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-colors"
-                    >
+                    <button type="button" onClick={e => { e.stopPropagation(); remove(entry.id) }} aria-label={`Delete entry: ${entry.title}`} className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-colors">
                       <Trash2 className="w-4 h-4" />
                     </button>
-                    <ChevronDown
-                      className={`w-4 h-4 text-gray-400 transition-transform ${expandedId === entry.id ? 'rotate-180' : ''}`}
-                    />
+                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${expandedId === entry.id ? 'rotate-180' : ''}`} />
                   </div>
                 </div>
               </div>
@@ -357,9 +321,7 @@ export default function DiaryPage({ role }: DiaryPageProps) {
               <AnimatePresence>
                 {expandedId === entry.id && (
                   <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
+                    initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
                     className="overflow-hidden"
                   >
                     <div className="px-5 pb-5 border-t border-gray-100 pt-4">
@@ -368,11 +330,8 @@ export default function DiaryPage({ role }: DiaryPageProps) {
                       </p>
                       {entry.tags.length > 0 && (
                         <div className="flex flex-wrap gap-2 mt-4">
-                          {entry.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-medium"
-                            >
+                          {entry.tags.map(tag => (
+                            <span key={tag} className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-medium">
                               #{tag}
                             </span>
                           ))}

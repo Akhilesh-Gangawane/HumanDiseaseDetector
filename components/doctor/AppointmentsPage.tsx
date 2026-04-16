@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Calendar as CalendarIcon, Clock, CheckCircle, XCircle, Plus, Search } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, CheckCircle, XCircle, Plus, Search, Video } from 'lucide-react';
 import { useDoctorState, Appointment } from './DoctorStateContext';
+import CalendarEventBadge from '@/components/ui/CalendarEventBadge';
 
 export default function AppointmentsPage() {
   const { appointments, setAppointments, addNotification, patients } = useDoctorState();
@@ -27,18 +28,33 @@ export default function AppointmentsPage() {
     // Optimistic update
     setAppointments(appointments.map(apt => apt.id === id ? { ...apt, status } : apt));
 
-    await fetch('/api/doctor/appointments', {
+    const res = await fetch('/api/doctor/appointments', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, status }),
     });
+
+    // If confirmed, update meetLink and calendarEventLink in state
+    if (res.ok) {
+      const { meetLink, calendarEventLink } = await res.json();
+      setAppointments(prev => prev.map(apt =>
+        apt.id === id
+          ? {
+              ...apt,
+              status,
+              ...(meetLink ? { meetLink } : {}),
+              ...((calendarEventLink !== undefined) ? { calendarEventLink } : {}),
+            }
+          : apt,
+      ));
+    }
 
     const target = appointments.find(a => a.id === id);
     if (target) {
       addNotification({
         title: `Appointment ${status}`,
         message: `Appointment for ${target.patientName} has been ${status.toLowerCase()}`,
-        type: status === 'Confirmed' ? 'appointment' : 'alert'
+        type: status === 'Confirmed' ? 'appointment' : 'alert',
       });
     }
   };
@@ -231,13 +247,64 @@ export default function AppointmentsPage() {
                     <span className="flex items-center gap-1"><CalendarIcon className="w-4 h-4" /> {apt.date}</span>
                     <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> {apt.time}</span>
                   </p>
+                  {(apt as Appointment & { reason?: string; initiatedBy?: string }).reason && (
+                    <p className="text-xs text-gray-500 mt-1 italic">
+                      &quot;{(apt as Appointment & { reason?: string }).reason}&quot;
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-                <div className="flex flex-col items-end gap-1">
+                <div className="flex flex-col items-end gap-2">
                   <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(apt.status)}`}>{apt.status}</span>
                   <span className="text-xs text-gray-500 font-medium">{apt.type} • {apt.mode}</span>
+                  {(apt as Appointment & { initiatedBy?: string }).initiatedBy === 'patient' && (
+                    <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">Patient Request</span>
+                  )}
+
+                  {/* Google Meet join */}
+                  {apt.status === 'Confirmed' && apt.mode === 'Online' && apt.meetLink && (
+                    <a
+                      href={apt.meetLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full hover:bg-indigo-100 transition-colors border border-indigo-200"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <Video className="w-3.5 h-3.5" /> Join Meet
+                    </a>
+                  )}
+
+                  {/* Calendar badge */}
+                  {apt.status !== 'Cancelled' && (
+                    <CalendarEventBadge
+                      eventLink={(apt as any).calendarEventLink ?? null}
+                      onAdd={async () => {
+                        const res = await fetch('/api/calendar', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            summary: `${apt.type} — ${apt.patientName}`,
+                            description: `Appointment with patient ${apt.patientName}.\nMode: ${apt.mode}${apt.meetLink ? `\n\nJoin Google Meet: ${apt.meetLink}` : ''}`,
+                            date: apt.date,
+                            time: apt.time,
+                            durationMins: 30,
+                          }),
+                        });
+                        if (!res.ok) return null;
+                        const data = await res.json();
+                        const link = data.eventLink ?? null;
+                        if (link) {
+                          setAppointments(prev => prev.map(a =>
+                            a.id === apt.id ? { ...a, calendarEventLink: link } as any : a,
+                          ));
+                        }
+                        return link;
+                      }}
+                      size="sm"
+                    />
+                  )}
                 </div>
 
                 {apt.status === 'Pending' && (

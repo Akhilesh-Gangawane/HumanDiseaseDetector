@@ -24,6 +24,7 @@ const ProfilePage = dynamic(() => import('@/components/doctor/ProfilePage'), { l
 const SettingsPage = dynamic(() => import('@/components/doctor/SettingsPage'), { loading: () => <TabFallback /> });
 const LabPathology = dynamic(() => import('@/components/doctor/LabPathology'), { loading: () => <TabFallback /> });
 const NotificationsPage = dynamic(() => import('@/components/doctor/NotificationsPage'), { loading: () => <TabFallback /> });
+const RecordingsManager = dynamic(() => import('@/components/doctor/RecordingsManager'), { loading: () => <TabFallback /> });
 const DiaryPage = dynamic(
   () => import('@/components/DiaryPage').then(m => ({ default: () => <m.default role="doctor" /> })),
   { loading: () => <TabFallback /> }
@@ -51,6 +52,7 @@ const TAB_COMPONENTS: Record<string, React.ComponentType> = {
   profile: ProfilePage,
   settings: SettingsPage,
   notifications: NotificationsPage,
+  recordings: RecordingsManager,
   diary: DiaryPage,
 };
 

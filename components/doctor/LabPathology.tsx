@@ -255,6 +255,9 @@ export default function LabPathology() {
                               test.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
                               'bg-gray-100 text-gray-700'
                             }`}>{test.status}</span>
+                            {(test as typeof test & { initiatedBy?: string }).initiatedBy === 'patient' && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-blue-100 text-blue-700">Patient Booked</span>
+                            )}
                           </div>
                           <h4 className="font-bold text-lg text-gray-900 mb-2">{test.testName}</h4>
                           <p className="text-sm font-medium text-gray-600">Patient: <span className="font-semibold text-gray-900">{test.patientName}</span></p>

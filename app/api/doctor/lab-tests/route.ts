@@ -18,12 +18,25 @@ export async function GET() {
   const doctor = await getDoctorRow(session.user.email)
   if (!doctor) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { data, error } = await supabaseServer
-    .from('lab_tests')
-    .select('*')
-    .eq('doctor_id', doctor.id)
-    .order('created_at', { ascending: false })
+  // Get tests the doctor requested AND tests patients self-booked (for assigned patients)
+  const { data: links } = await supabaseServer
+    .from('doctor_patients').select('patient_id').eq('doctor_id', doctor.id)
+  const patientIds = (links ?? []).map(l => l.patient_id)
 
+  let query = supabaseServer.from('lab_tests').select('*').order('created_at', { ascending: false })
+
+  if (patientIds.length > 0) {
+    // doctor's own tests OR patient-initiated tests for assigned patients
+    query = supabaseServer
+      .from('lab_tests')
+      .select('*')
+      .or(`doctor_id.eq.${doctor.id},and(initiated_by.eq.patient,patient_id.in.(${patientIds.join(',')}))`)
+      .order('created_at', { ascending: false })
+  } else {
+    query = supabaseServer.from('lab_tests').select('*').eq('doctor_id', doctor.id).order('created_at', { ascending: false })
+  }
+
+  const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const tests = (data ?? []).map(t => ({
@@ -38,6 +51,7 @@ export async function GET() {
     priority: t.priority,
     diagnosisReason: t.diagnosis_reason ?? '',
     labValues: t.lab_values ?? [],
+    initiatedBy: t.initiated_by ?? 'doctor',
   }))
 
   return NextResponse.json({ tests })

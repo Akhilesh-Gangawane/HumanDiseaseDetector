@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   BookOpen,
+  Video,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -32,8 +33,9 @@ const menuItems = [
   { id: 'patients', label: 'Patients', icon: Users },
   { id: 'ai-predictions', label: 'AI Predictions', icon: Brain },
   { id: 'appointments', label: 'Appointments', icon: Calendar },
+  { id: 'consult-doctors', label: 'Telemedicine', icon: Stethoscope },
+  { id: 'recordings', label: 'Recordings', icon: Video },
   { id: 'medicine-reviews', label: 'Medicine Reviews', icon: Pill },
-  { id: 'consult-doctors', label: 'Consult Doctors', icon: Stethoscope },
   { id: 'progress-tracker', label: 'Progress Tracker', icon: TrendingUp },
   { id: 'prescriptions', label: 'Prescriptions', icon: FileText },
   { id: 'notifications', label: 'Notifications', icon: Bell, badge: 5 },

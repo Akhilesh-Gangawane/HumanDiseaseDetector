@@ -59,11 +59,24 @@ export default function DiseasePredictionPage() {
       }
 
       const data = await res.json();
-      setResult({
+      const predResult: PredictionResult = {
         prediction: data.prediction,
         confidence: Math.round(data.confidence * 100),
         method: data.method ?? 'Deep Residual Neural Network',
-      });
+      };
+      setResult(predResult);
+
+      // Save prediction to DB so doctor can see it
+      await fetch('/api/patient/predictions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          disease: predResult.prediction,
+          confidence: predResult.confidence,
+          symptoms: selected.map(s => s.display),
+          explanation: `${predResult.method} · ${selected.length} symptoms`,
+        }),
+      }).catch(() => { /* non-critical */ })
     } catch (err) {
       if (err instanceof TypeError && err.message === 'Failed to fetch') {
         setError(`Cannot connect to prediction API.\nMake sure the FastAPI server is running:\n  cd Human-Health_model && python -m uvicorn app:app --port 8000`);

@@ -335,6 +335,11 @@ export default function AIPredictionReview() {
                           {pred.status}
                         </span>
                       )}
+                      {(pred as typeof pred & { initiatedBy?: string }).initiatedBy === 'patient' && (
+                        <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-700">
+                          Patient Self-Test
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-gray-500 mt-0.5">
                       Patient: <span className="font-medium text-gray-700">{pred.patient}</span>

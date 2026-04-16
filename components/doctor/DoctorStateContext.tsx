@@ -18,12 +18,16 @@ export type Patient = {
 export type Appointment = {
   id: string;
   patientName: string;
+  patientId?: string | null;
   time: string;
   date: string;
   type: string;
   mode: 'Online' | 'Offline';
   status: 'Confirmed' | 'Pending' | 'Cancelled';
   avatar: string;
+  reason?: string;
+  initiatedBy?: string;
+  meetLink?: string | null;
 };
 
 export type Prediction = {
@@ -137,8 +141,7 @@ export function DoctorStateProvider({ children }: { children: ReactNode }) {
       if (appointmentsRes.ok) {
         const d = await appointmentsRes.json();
         setAppointments(d.appointments ?? []);
-      }
-      if (predictionsRes.ok) {
+      }      if (predictionsRes.ok) {
         const d = await predictionsRes.json();
         setPredictions(d.predictions ?? []);
       }

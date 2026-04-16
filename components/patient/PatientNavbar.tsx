@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Menu, X, User, Settings, LogOut, Bell, Shield, ChevronDown, Home, Stethoscope, Brain, FileText } from 'lucide-react';
+import { Menu, X, User, Settings, LogOut, Bell, Shield, ChevronDown, Home, Stethoscope, Brain, FileText, Calendar } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 
@@ -12,6 +12,7 @@ const NAV_LINKS = [
   { label: 'Disease Prediction', href: '/disease-prediction', icon: Brain },
   { label: 'Consult Doctor', href: '/consult-doctor', icon: Stethoscope },
   { label: 'Health Records', href: '/patient-dashboard/records', icon: FileText },
+  { label: 'Appointments', href: '/patient-dashboard/appointments', icon: Calendar },
 ];
 
 export default function PatientNavbar() {

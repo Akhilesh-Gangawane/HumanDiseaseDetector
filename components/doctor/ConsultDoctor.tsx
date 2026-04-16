@@ -7,21 +7,21 @@ import {
   Users, Calendar, MessageSquare, Loader2
 } from 'lucide-react';
 import { useDoctorState } from './DoctorStateContext';
-import { openGoogleMeet } from '@/lib/videosdk';
+import { openGoogleMeet } from '@/lib/videosdk'
 
 export default function ConsultDoctor() {
-  const { appointments } = useDoctorState();
-  const [activeTab, setActiveTab] = useState('upcoming');
-  const [currentTime, setCurrentTime] = useState('');
+  const { appointments } = useDoctorState()
+  const [activeTab, setActiveTab] = useState('upcoming')
+  const [currentTime, setCurrentTime] = useState('')
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+      setCurrentTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
 
-  const upcomingAppointments = appointments.filter(apt => apt.mode === 'Online');
+  const upcomingAppointments = appointments.filter(apt => apt.mode === 'Online' && apt.status === 'Confirmed')
 
   return (
     <div className="w-full p-6 md:p-8">
@@ -38,11 +38,11 @@ export default function ConsultDoctor() {
             <p className="text-sm text-gray-500 font-medium uppercase tracking-wider">Current Time</p>
             <p className="text-2xl font-bold text-gray-900">{currentTime || 'Loading...'}</p>
           </div>
-          <button type="button" onClick={openGoogleMeet} className="group relative px-6 py-4 bg-gray-900 text-white font-bold rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1">
+          <button type="button" onClick={() => openGoogleMeet()} className="group relative px-6 py-4 bg-gray-900 text-white font-bold rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1">
             <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <div className="relative flex items-center gap-3">
               <Video className="w-5 h-5" />
-              Start Video Call
+              Start New Call
             </div>
           </button>
         </div>
@@ -97,7 +97,12 @@ export default function ConsultDoctor() {
                           {apt.status}
                         </span>
                       </div>
-                      <button type="button" onClick={openGoogleMeet} aria-label={`Start video call with ${apt.patientName}`} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${idx === 0 ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 group-hover:scale-110' : 'bg-gray-100 text-gray-600 group-hover:bg-indigo-100 group-hover:text-indigo-600'}`}>
+                      <button
+                        type="button"
+                        onClick={() => openGoogleMeet((apt as typeof apt & { meetLink?: string }).meetLink ?? undefined)}
+                        aria-label={`Join video call with ${apt.patientName}`}
+                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${idx === 0 ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 group-hover:scale-110' : 'bg-gray-100 text-gray-600 group-hover:bg-indigo-100 group-hover:text-indigo-600'}`}
+                      >
                         <Video className="w-5 h-5" />
                       </button>
                     </div>

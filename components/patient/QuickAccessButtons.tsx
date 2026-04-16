@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Package, Pill, FlaskConical, Stethoscope, FileText, Bell } from 'lucide-react';
+import { Package, Pill, FlaskConical, Stethoscope, FileText, Bell, Calendar, PhoneCall } from 'lucide-react';
 
 export default function QuickAccessButtons() {
   const router = useRouter();
@@ -58,6 +58,16 @@ export default function QuickAccessButtons() {
       badge: null
     },
     {
+      title: 'My Appointments',
+      description: 'View & join video calls',
+      icon: <Calendar className="w-6 h-6" />,
+      color: 'from-indigo-500 to-purple-500',
+      bgColor: 'bg-indigo-50',
+      iconColor: 'text-indigo-600',
+      route: '/patient-dashboard/appointments',
+      badge: null
+    },
+    {
       title: 'Notifications',
       description: 'Updates from your doctor',
       icon: <Bell className="w-6 h-6" />,
@@ -66,6 +76,16 @@ export default function QuickAccessButtons() {
       iconColor: 'text-indigo-600',
       route: '/patient-dashboard/notifications',
       badge: null
+    },
+    {
+      title: 'Voice Receptionist',
+      description: 'Talk to our AI medical receptionist',
+      icon: <PhoneCall className="w-6 h-6" />,
+      color: 'from-teal-500 to-cyan-500',
+      bgColor: 'bg-teal-50',
+      iconColor: 'text-teal-600',
+      route: '/patient-dashboard/voice-receptionist',
+      badge: 'AI'
     },
   ];
 
