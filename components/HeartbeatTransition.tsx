@@ -9,27 +9,27 @@ export default function HeartbeatTransition() {
       {/* Heartbeat Icon */}
       <motion.div
         animate={{
-          scale: [1, 1.2, 1, 1.3, 1],
+          scale: [1, 1.15, 1, 1.2, 1],
         }}
         transition={{
-          duration: 1.5,
+          duration: 0.8,
           repeat: Infinity,
           ease: "easeInOut",
         }}
         className="relative"
       >
-        <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center shadow-2xl">
-          <Activity className="w-12 h-12 text-white" />
+        <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center shadow-2xl">
+          <Activity className="w-10 h-10 text-white" />
         </div>
-        
+
         {/* Pulse rings */}
         <motion.div
           animate={{
             scale: [1, 2, 2.5],
-            opacity: [0.6, 0.3, 0],
+            opacity: [0.5, 0.2, 0],
           }}
           transition={{
-            duration: 1.5,
+            duration: 0.8,
             repeat: Infinity,
             ease: "easeOut",
           }}
@@ -38,13 +38,13 @@ export default function HeartbeatTransition() {
         <motion.div
           animate={{
             scale: [1, 2, 2.5],
-            opacity: [0.6, 0.3, 0],
+            opacity: [0.5, 0.2, 0],
           }}
           transition={{
-            duration: 1.5,
+            duration: 0.8,
             repeat: Infinity,
             ease: "easeOut",
-            delay: 0.3,
+            delay: 0.2,
           }}
           className="absolute inset-0 bg-teal-400 rounded-full"
         />
@@ -52,38 +52,35 @@ export default function HeartbeatTransition() {
 
       {/* Loading Text */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
+        transition={{ delay: 0.1 }}
         className="mt-8 text-center"
       >
         <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text text-transparent">
           Dhanvantari AI
         </h2>
-        <p className="text-gray-600 mt-2">Loading your healthcare experience...</p>
+        <p className="text-gray-500 mt-1 text-sm">Loading...</p>
       </motion.div>
 
       {/* ECG Line Animation */}
-      <motion.div className="mt-8 w-64 h-16 relative overflow-hidden">
-        <svg
-          viewBox="0 0 200 40"
-          className="w-full h-full"
-        >
+      <motion.div className="mt-6 w-56 h-12 relative overflow-hidden">
+        <svg viewBox="0 0 200 40" className="w-full h-full">
           <motion.path
             d="M0,20 L40,20 L45,10 L50,30 L55,5 L60,20 L200,20"
-            stroke="url(#gradient)"
+            stroke="url(#hb-gradient)"
             strokeWidth="2"
             fill="none"
             initial={{ pathLength: 0 }}
             animate={{ pathLength: 1 }}
             transition={{
-              duration: 2,
+              duration: 0.8,
               repeat: Infinity,
               ease: "linear",
             }}
           />
           <defs>
-            <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <linearGradient id="hb-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%" stopColor="#3B82F6" />
               <stop offset="100%" stopColor="#14B8A6" />
             </linearGradient>

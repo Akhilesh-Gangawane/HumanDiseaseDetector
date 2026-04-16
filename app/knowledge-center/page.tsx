@@ -10,8 +10,6 @@ import { useRouter } from 'next/navigation';
 
 // ─── Inline styles / keyframes ───────────────────────────────────────────────
 const css = `
-  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap');
-
   :root {
     --bg: #f8fafc;
     --ink: #1e3a8a;
@@ -26,7 +24,7 @@ const css = `
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  body { background: var(--bg); font-family: 'DM Sans', sans-serif; color: var(--ink); }
+  body { background: var(--bg); color: var(--ink); }
 
   @keyframes fadeUp {
     from { opacity: 0; transform: translateY(32px); }
@@ -385,7 +383,7 @@ export default function KnowledgeCenterPage() {
               <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.1em', color: '#14b8a6', textTransform: 'uppercase' }}>Health Knowledge Hub</span>
             </div>
 
-            <h1 className="fade-up stagger-2" style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(42px, 6vw, 76px)', fontWeight: 900, color: '#f8f6f1', lineHeight: 1.08, marginBottom: 20 }}>
+            <h1 className="fade-up stagger-2" style={{ fontSize: 'clamp(42px, 6vw, 76px)', fontWeight: 900, color: '#f8f6f1', lineHeight: 1.08, marginBottom: 20, letterSpacing: '-0.02em' }}>
               Know Your<br /><em style={{ color: '#14b8a6', fontStyle: 'italic' }}>Health</em>
             </h1>
             <p className="fade-up stagger-3" style={{ fontSize: 17, color: 'rgba(248,246,241,.6)', maxWidth: 480, margin: '0 auto 36px', lineHeight: 1.7 }}>
@@ -538,7 +536,7 @@ export default function KnowledgeCenterPage() {
             <div style={{ position: 'absolute', right: -40, top: -40, width: 220, height: 220, borderRadius: '50%', background: 'rgba(20,184,166,.18)' }} />
             <div style={{ position: 'absolute', right: 60, bottom: -60, width: 160, height: 160, borderRadius: '50%', background: 'rgba(59,130,246,.12)' }} />
             <div style={{ position: 'relative' }}>
-              <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(24px, 3vw, 36px)', color: '#f8f6f1', fontWeight: 900, marginBottom: 10 }}>
+              <h2 style={{ fontSize: 'clamp(24px, 3vw, 36px)', color: '#f8f6f1', fontWeight: 900, marginBottom: 10, letterSpacing: '-0.02em' }}>
                 Stay Informed.<br /><em style={{ color: '#14b8a6' }}>Stay Healthy.</em>
               </h2>
               <p style={{ color: 'rgba(248,246,241,.55)', fontSize: 15 }}>Get weekly curated health insights from our experts.</p>
@@ -573,7 +571,7 @@ export default function KnowledgeCenterPage() {
 function SectionHead({ label, rule, accent }: { label: string; rule?: boolean; accent?: boolean }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-      <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(22px, 3vw, 30px)', fontWeight: 900, color: accent ? 'var(--accent)' : 'var(--ink)', whiteSpace: 'nowrap' }}>{label}</h2>
+      <h2 style={{ fontSize: 'clamp(22px, 3vw, 30px)', fontWeight: 800, color: accent ? 'var(--accent)' : 'var(--ink)', whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>{label}</h2>
       {rule && <hr className="animated-rule" style={{ flex: 1, border: 'none', borderTop: '1.5px solid var(--rule)', transformOrigin: 'left' }} />}
     </div>
   );
@@ -618,7 +616,7 @@ function ArticleCard({ article: a, delay }: { article: typeof ARTICLES[0]; delay
           <Star style={{ width: 11, height: 11, color: '#e5a81a', fill: '#e5a81a' }} />
           <span style={{ fontSize: 11, color: 'var(--muted)' }}>{a.stars}</span>
         </div>
-        <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 700, color: 'var(--ink)', marginBottom: 8, lineHeight: 1.3 }}>{a.title}</h3>
+        <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', marginBottom: 8, lineHeight: 1.3, letterSpacing: '-0.01em' }}>{a.title}</h3>
         <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 14 }}>{a.desc}</p>
         <span style={{ fontSize: 13, fontWeight: 600, color: a.tagColor, display: 'flex', alignItems: 'center', gap: 4, transition: 'gap .2s ease' }}>
           Read Article <ExternalLink style={{ width: 12, height: 12 }} />

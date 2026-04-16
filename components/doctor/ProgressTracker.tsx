@@ -15,25 +15,35 @@ export default function ProgressTracker() {
     heartRate: '', bpSys: '', bpDia: '', glucose: '', temp: ''
   });
 
-  const currentPatient = patients.find(p => p.id.toString() === selectedPatientId) || patients[0];
+  const currentPatient = patients.find(p => p.userId === selectedPatientId) || patients[0];
   const patientMetrics = metrics
-    .filter(m => m.patientId === currentPatient?.id)
+    .filter(m => m.patientId === currentPatient?.userId)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const latestMetric = patientMetrics[0];
 
-  const handleSaveVitals = (e: React.FormEvent) => {
+  const handleSaveVitals = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentPatient) return;
-    const metric = {
-      id: `M${Date.now()}`,
-      patientId: currentPatient.id,
-      date: newVitals.date,
-      heartRate: parseInt(newVitals.heartRate) || 0,
-      bloodPressure: { systolic: parseInt(newVitals.bpSys) || 0, diastolic: parseInt(newVitals.bpDia) || 0 },
-      glucose: parseInt(newVitals.glucose) || 0,
-      temperature: parseFloat(newVitals.temp) || 0
-    };
-    setMetrics(prev => [metric, ...prev]);
+
+    const res = await fetch('/api/doctor/vitals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        patientId: currentPatient.userId,  // UUID
+        date: newVitals.date,
+        heartRate: newVitals.heartRate,
+        bpSys: newVitals.bpSys,
+        bpDia: newVitals.bpDia,
+        glucose: newVitals.glucose,
+        temp: newVitals.temp,
+      }),
+    });
+
+    if (res.ok) {
+      const { metric } = await res.json();
+      setMetrics(prev => [metric, ...prev]);
+    }
+
     setShowVitalsModal(false);
     setNewVitals({ date: new Date().toISOString().split('T')[0], heartRate: '', bpSys: '', bpDia: '', glucose: '', temp: '' });
   };
@@ -60,12 +70,12 @@ export default function ProgressTracker() {
             <div className="relative">
               <select
                 id="patient-select"
-                value={selectedPatientId || (currentPatient ? currentPatient.id.toString() : '')}
+                value={selectedPatientId || (currentPatient ? currentPatient.userId ?? '' : '')}
                 onChange={(e) => setSelectedPatientId(e.target.value)}
                 className="w-full appearance-none bg-white border border-gray-200 text-gray-900 font-semibold py-3 pl-12 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm cursor-pointer"
               >
                 {patients.length > 0
-                  ? patients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)
+                  ? patients.map(p => <option key={p.id} value={p.userId ?? p.id}>{p.name}</option>)
                   : <option value="">No patients available</option>}
               </select>
               <UserSquare2 className="absolute left-4 top-1/2 transform -translate-y-1/2 text-blue-500 w-5 h-5" />

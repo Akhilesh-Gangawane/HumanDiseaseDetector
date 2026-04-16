@@ -6,6 +6,7 @@ import NeuralNetworkContainer from '@/components/ui/NeuralNetworkContainer';
 import Footer from '@/components/patient/Footer';
 import PathologyScroll from '@/components/patient/PathologyScroll';
 import { BookingTimeSelector, BookingStatusTracker, QueueDisplay } from '@/components/patient/PathologyBookingSystem';
+import Swal from 'sweetalert2';
 import {
   FlaskConical, Calendar, FileText, Clock, ArrowLeft,
   Search, Star, Shield, Zap, HeartPulse,
@@ -249,7 +250,12 @@ export default function PathologyPage() {
     } else if (promoCode.toUpperCase() === 'LAB10') {
       setDiscount(cartTotal * 0.10);
     } else {
-      alert('Invalid promo code');
+      Swal.fire({
+        icon: 'error',
+        title: 'Invalid Promo Code',
+        text: 'The promo code you entered is not valid. Try HEALTH25 or LAB10.',
+        confirmButtonColor: '#0d9488',
+      });
     }
   };
 
@@ -266,7 +272,7 @@ export default function PathologyPage() {
     setCheckoutStep('address');
   };
 
-  const placeBooking = () => {
+  const placeBooking = async () => {
     const bookingId = 'LAB' + Date.now().toString().slice(-8);
     const bookingDate = new Date();
     const sampleCollectionDate = new Date(address.preferredDate);
@@ -290,7 +296,16 @@ export default function PathologyPage() {
     setCart([]);
     setDiscount(0);
     setPromoCode('');
-    
+
+    // Save lab bookings to DB so doctor can see them
+    await fetch('/api/patient/lab-bookings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tests: booking.items.map(i => ({ name: i.name, price: i.price })),
+      }),
+    }).catch(() => { /* non-critical */ });
+
     // Show queue display if not waitlisted
     if (!selectedTimeSlot?.isWaitlist) {
       setShowQueueDisplay(true);

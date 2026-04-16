@@ -40,30 +40,32 @@ export default function LabPathology() {
 
   const testsByPatient = patients.map(patient => ({
     patient,
-    tests: allTests.filter(t => t.patientId === patient.id)
+    tests: allTests.filter(t => t.patientId === patient.userId)
   })).filter(group => group.tests.length > 0);
 
-  const handleCreateOrder = (e: React.FormEvent) => {
+  const handleCreateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newOrder.patientId || !newOrder.testName) return;
-    const patient = patients.find(p => p.id.toString() === newOrder.patientId);
+    const patient = patients.find(p => p.userId === newOrder.patientId);
     if (!patient) return;
 
-    const newTest: TestRequest = {
-      id: `TR-${Math.floor(1000 + Math.random() * 9000)}`,
-      patientId: patient.id,
-      patientName: patient.name,
-      testName: newOrder.testName,
-      requestedByDoctorId: currentDoctorId,
-      requestedByDoctorName: 'Dr. Sarah Johnson',
-      requestDate: new Date().toISOString().split('T')[0],
-      status: 'Pending',
-      priority: newOrder.priority,
-      diagnosisReason: newOrder.reason || 'Routine check',
-      labValues: []
-    };
+    const res = await fetch('/api/doctor/lab-tests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        patientId: patient.userId,   // UUID for DB + patient notification
+        patientName: patient.name,
+        testName: newOrder.testName,
+        priority: newOrder.priority,
+        reason: newOrder.reason,
+      }),
+    });
 
-    setTestRequests(prev => [newTest, ...prev]);
+    if (res.ok) {
+      const { test } = await res.json();
+      setTestRequests(prev => [test, ...prev]);
+    }
+
     setShowOrderModal(false);
     setNewOrder({ patientId: '', testName: '', priority: 'Normal', reason: '' });
     setActiveTab('pending');
@@ -190,7 +192,7 @@ export default function LabPathology() {
                           <div key={test.id} className="bg-white p-4 rounded-xl border border-gray-100 flex items-center justify-between">
                             <div>
                               <div className="flex gap-2 items-center mb-1">
-                                <span className="font-mono text-xs font-bold text-indigo-600">{test.id}</span>
+                                <span className="font-sans text-xs font-bold text-indigo-600 tracking-wide">{test.id}</span>
                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                                   test.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
                                 }`}>{test.status}</span>
@@ -242,7 +244,7 @@ export default function LabPathology() {
                         </div>
                         <div className="flex-1">
                           <div className="flex gap-3 items-center mb-2">
-                            <span className="font-mono text-xs font-black text-indigo-600 tracking-wider bg-indigo-50 px-2 py-1 rounded-md">{test.id}</span>
+                            <span className="font-sans text-xs font-black text-indigo-600 tracking-wider bg-indigo-50 px-2 py-1 rounded-md">{test.id}</span>
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
                               test.priority === 'Urgent' ? 'bg-rose-100 text-rose-700' :
                               test.priority === 'High' ? 'bg-amber-100 text-amber-700' :
@@ -253,6 +255,9 @@ export default function LabPathology() {
                               test.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
                               'bg-gray-100 text-gray-700'
                             }`}>{test.status}</span>
+                            {(test as typeof test & { initiatedBy?: string }).initiatedBy === 'patient' && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-blue-100 text-blue-700">Patient Booked</span>
+                            )}
                           </div>
                           <h4 className="font-bold text-lg text-gray-900 mb-2">{test.testName}</h4>
                           <p className="text-sm font-medium text-gray-600">Patient: <span className="font-semibold text-gray-900">{test.patientName}</span></p>
@@ -348,7 +353,7 @@ export default function LabPathology() {
                     required
                   >
                     <option value="">Select a patient...</option>
-                    {patients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    {patients.map(p => <option key={p.id} value={p.userId ?? p.id}>{p.name}</option>)}
                   </select>
                 </div>
                 <div>

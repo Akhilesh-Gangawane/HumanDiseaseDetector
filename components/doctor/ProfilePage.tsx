@@ -1,37 +1,126 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User, Mail, Phone, MapPin, Award, Calendar, Check, Edit2 } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+
+interface DoctorProfile {
+  name: string;
+  specialty: string;
+  email: string;
+  phone: string;
+  location: string;
+  license: string;
+  experience: string;
+  certifications: string;
+  avatarUrl: string;
+}
+
+const defaultProfile: DoctorProfile = {
+  name: '',
+  specialty: '',
+  email: '',
+  phone: '',
+  location: '',
+  license: '',
+  experience: '',
+  certifications: '',
+  avatarUrl: '',
+};
 
 export default function ProfilePage() {
+  const { data: session } = useSession();
   const [isEditing, setIsEditing] = useState(false);
-  const [profile, setProfile] = useState({
-    name: 'Dr. Sarah Johnson',
-    specialty: 'Cardiologist',
-    email: 'sarah.johnson@hospital.com',
-    phone: '+1 (555) 123-4567',
-    location: 'City General Hospital, New York',
-    license: 'MD-12345-NY',
-    experience: '15 Years',
-    certifications: 'ABIM, FACC',
-  });
+  const [profile, setProfile] = useState<DoctorProfile>(defaultProfile);
+  const [editedProfile, setEditedProfile] = useState<DoctorProfile>(defaultProfile);
+  const [loading, setLoading] = useState(true);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!session?.user?.email) return;
+    const fetchProfile = async () => {
+      setLoading(true);
+      const res = await fetch('/api/user/profile');
+      if (!res.ok) { setLoading(false); return; }
+      const { user: userRow, doctor: doctorRow } = await res.json();
+
+      const merged: DoctorProfile = {
+        name: userRow.full_name ?? session.user?.name ?? '',
+        specialty: doctorRow?.specialization ?? '',
+        email: userRow.email ?? '',
+        phone: '',
+        location: '',
+        license: doctorRow?.license_number ?? '',
+        experience: doctorRow?.experience_years ? `${doctorRow.experience_years}` : '',
+        certifications: doctorRow?.qualifications?.join(', ') ?? '',
+        avatarUrl: userRow.avatar_url ?? session.user?.image ?? '',
+      };
+      setProfile(merged);
+      setEditedProfile(merged);
+      setLoading(false);
+    };
+    fetchProfile();
+  }, [session]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setProfile({ ...profile, [e.target.name]: e.target.value });
+    setEditedProfile({ ...editedProfile, [e.target.name]: e.target.value });
   };
+
+  const handleSave = async () => {
+    setProfile(editedProfile);
+    setIsEditing(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+
+    await fetch('/api/user/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        full_name: editedProfile.name,
+        doctor: {
+          specialization: editedProfile.specialty,
+          license_number: editedProfile.license,
+          experience_years: editedProfile.experience ? parseInt(editedProfile.experience) || null : null,
+          certifications: editedProfile.certifications,
+        },
+      }),
+    });
+  };
+
+  const avatarSrc = profile.avatarUrl ||
+    `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(profile.name || 'Doctor')}`;
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-gray-500">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const data = isEditing ? editedProfile : profile;
 
   return (
     <div className="p-8">
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Profile</h1>
+
+      {saved && (
+        <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-2">
+          <Check className="w-5 h-5" /> Profile saved successfully!
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
           <div className="bg-white rounded-2xl shadow-lg p-6">
             <div className="flex flex-col items-center">
               <img
-                src="https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah"
-                alt={profile.name}
-                className="w-32 h-32 rounded-full mb-4"
+                src={avatarSrc}
+                alt={data.name}
+                className="w-32 h-32 rounded-full mb-4 object-cover"
               />
               {isEditing ? (
                 <div className="w-full space-y-2 mb-4">
@@ -40,7 +129,7 @@ export default function ProfilePage() {
                     id="profile-name"
                     type="text"
                     name="name"
-                    value={profile.name}
+                    value={editedProfile.name}
                     onChange={handleChange}
                     className="w-full px-3 py-2 text-center text-xl font-bold text-gray-900 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -49,15 +138,16 @@ export default function ProfilePage() {
                     id="profile-specialty"
                     type="text"
                     name="specialty"
-                    value={profile.specialty}
+                    value={editedProfile.specialty}
                     onChange={handleChange}
+                    placeholder="Specialization"
                     className="w-full px-3 py-2 text-center text-gray-600 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               ) : (
                 <>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-1">{profile.name}</h2>
-                  <p className="text-gray-600 mb-4">{profile.specialty}</p>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-1">{data.name || 'Doctor'}</h2>
+                  <p className="text-gray-600 mb-4">{data.specialty || 'Specialist'}</p>
                 </>
               )}
               <div className="flex gap-2 mb-6">
@@ -66,7 +156,7 @@ export default function ProfilePage() {
               </div>
               <button
                 type="button"
-                onClick={() => setIsEditing(!isEditing)}
+                onClick={() => isEditing ? handleSave() : setIsEditing(true)}
                 className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 ${isEditing ? 'bg-gradient-to-r from-green-500 to-green-600 text-white' : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'}`}
               >
                 {isEditing ? <><Check className="w-5 h-5" /> Save Changes</> : <><Edit2 className="w-5 h-5" /> Edit Profile</>}
@@ -97,13 +187,13 @@ export default function ProfilePage() {
                           id={`profile-${field}`}
                           type={type}
                           name={field}
-                          value={profile[field as keyof typeof profile]}
+                          value={editedProfile[field as keyof DoctorProfile]}
                           onChange={handleChange}
                           className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </>
                     ) : (
-                      <p className="font-semibold text-gray-900">{profile[field as keyof typeof profile]}</p>
+                      <p className="font-semibold text-gray-900">{data[field as keyof DoctorProfile] || '—'}</p>
                     )}
                   </div>
                 </div>
@@ -132,31 +222,16 @@ export default function ProfilePage() {
                         id={`prof-${field}`}
                         type="text"
                         name={field}
-                        value={profile[field as keyof typeof profile]}
+                        value={editedProfile[field as keyof DoctorProfile]}
                         onChange={handleChange}
                         className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </>
                   ) : (
-                    <p className="font-semibold text-gray-900">{profile[field as keyof typeof profile]}</p>
+                    <p className="font-semibold text-gray-900">{data[field as keyof DoctorProfile] || '—'}</p>
                   )}
                 </div>
               ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg p-6 text-white">
-              <p className="text-blue-100 mb-2">Total Patients</p>
-              <p className="text-4xl font-bold">1,284</p>
-            </div>
-            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl shadow-lg p-6 text-white">
-              <p className="text-green-100 mb-2">Success Rate</p>
-              <p className="text-4xl font-bold">96.8%</p>
-            </div>
-            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl shadow-lg p-6 text-white">
-              <p className="text-purple-100 mb-2">Consultations</p>
-              <p className="text-4xl font-bold">3,456</p>
             </div>
           </div>
         </div>

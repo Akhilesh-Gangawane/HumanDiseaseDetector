@@ -1,11 +1,16 @@
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { useState } from 'react'
+import { useState, lazy, Suspense } from 'react'
+import Swal from 'sweetalert2'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Mail, Lock, User, Eye, EyeOff, ArrowLeft, Stethoscope, UserCircle } from 'lucide-react'
+import { signIn } from 'next-auth/react'
+
+const DoctorModel3D = lazy(() => import('@/components/DoctorModel3D'))
+const PatientModel3D = lazy(() => import('@/components/PatientModel3D'))
 
 export default function LoginPage() {
   const router = useRouter()
@@ -14,6 +19,7 @@ export default function LoginPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
   const [userRole, setUserRole] = useState<'doctor' | 'patient'>('patient')
+  const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -21,27 +27,32 @@ export default function LoginPage() {
     confirmPassword: '',
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (activeTab === 'signin') {
-      // Redirect based on user role
-      if (userRole === 'doctor') {
-        router.push('/dashboard')
-      } else {
-        router.push('/patient-dashboard')
-      }
-    } else {
-      if (formData.password !== formData.confirmPassword) {
-        alert('Passwords do not match!')
-        return
-      }
-      // Redirect based on user role after signup
-      if (userRole === 'doctor') {
-        router.push('/dashboard')
-      } else {
-        router.push('/patient-dashboard')
-      }
+
+    if (activeTab === 'signup' && formData.password !== formData.confirmPassword) {
+      Swal.fire({ icon: 'error', title: 'Password Mismatch', text: 'Passwords do not match.', confirmButtonColor: '#3b82f6' })
+      return
     }
+
+    setLoading(true)
+    const result = await signIn('credentials', {
+      redirect: false,
+      email: formData.email,
+      password: formData.password,
+      name: formData.name,
+      role: userRole,
+      isSignUp: activeTab === 'signup' ? 'true' : 'false',
+    })
+    setLoading(false)
+
+    if (result?.error) {
+      Swal.fire({ icon: 'error', title: 'Authentication Failed', text: result.error, confirmButtonColor: '#3b82f6' })
+      return
+    }
+
+    // Redirect based on selected role
+    router.push(userRole === 'doctor' ? '/dashboard' : '/patient-dashboard')
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -116,46 +127,110 @@ export default function LoginPage() {
         >
           <div className="grid md:grid-cols-2 gap-0">
             {/* Left Side - Illustration/Info */}
-            <div className="hidden md:flex flex-col justify-center p-12 bg-gradient-to-br from-blue-500 to-teal-500 text-white relative overflow-hidden">
+            <div className="hidden md:flex flex-col justify-center bg-gradient-to-br from-blue-500 to-teal-500 text-white relative overflow-hidden self-stretch min-h-[600px]">
               <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMzLjMxNCAwIDYgMi42ODYgNiA2cy0yLjY4NiA2LTYgNi02LTIuNjg2LTYtNiAyLjY4Ni02IDYtNiIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiIG9wYWNpdHk9Ii4xIi8+PC9nPjwvc3ZnPg==')] opacity-10" />
-              <div className="relative z-10">
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  <h2 className="text-4xl font-bold mb-4">Welcome to the Future of Healthcare</h2>
-                  <p className="text-blue-100 text-lg mb-8">
-                    AI-powered health monitoring and disease prediction at your fingertips
-                  </p>
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <span className="text-lg">AI Disease Prediction</span>
+
+              <AnimatePresence mode="wait">
+                {userRole === 'doctor' ? (
+                  /* 3D Model + original text for Doctor */
+                  <motion.div
+                    key="doctor-3d"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="relative z-10 flex flex-col h-full w-full"
+                  >
+                    {/* 3D model — top half */}
+                    <div className="w-full h-64 shrink-0">
+                      <Suspense fallback={
+                        <div className="w-full h-full flex items-center justify-center">
+                          <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin" />
+                        </div>
+                      }>
+                        <DoctorModel3D />
+                      </Suspense>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
+                    {/* Original text below */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 }}
+                      className="px-12 pb-10"
+                    >
+                      <h2 className="text-4xl font-bold mb-4">Welcome to the Future of Healthcare</h2>
+                      <p className="text-blue-100 text-lg mb-8">
+                        AI-powered health monitoring and disease prediction at your fingertips
+                      </p>
+                      <div className="space-y-4">
+                        {[
+                          'AI Disease Prediction',
+                          'Real-time Health Monitoring',
+                          'Connect with Doctors 24/7',
+                        ].map((item) => (
+                          <div key={item} className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                            <span className="text-lg">{item}</span>
+                          </div>
+                        ))}
                       </div>
-                      <span className="text-lg">Real-time Health Monitoring</span>
+                    </motion.div>
+                  </motion.div>
+                ) : (
+                  /* Patient Panel with 3D model + original text */
+                  <motion.div
+                    key="patient-info"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="relative z-10 flex flex-col h-full w-full"
+                  >
+                    {/* 3D model — top */}
+                    <div className="w-full h-64 shrink-0">
+                      <Suspense fallback={
+                        <div className="w-full h-full flex items-center justify-center">
+                          <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin" />
+                        </div>
+                      }>
+                        <PatientModel3D />
+                      </Suspense>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
+                    {/* Original text below */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 }}
+                      className="px-12 pb-10"
+                    >
+                      <h2 className="text-4xl font-bold mb-4">Welcome to the Future of Healthcare</h2>
+                      <p className="text-blue-100 text-lg mb-8">
+                        AI-powered health monitoring and disease prediction at your fingertips
+                      </p>
+                      <div className="space-y-4">
+                        {[
+                          'AI Disease Prediction',
+                          'Real-time Health Monitoring',
+                          'Connect with Doctors 24/7',
+                        ].map((item) => (
+                          <div key={item} className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                            <span className="text-lg">{item}</span>
+                          </div>
+                        ))}
                       </div>
-                      <span className="text-lg">Connect with Doctors 24/7</span>
-                    </div>
-                  </div>
-                </motion.div>
-              </div>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Right Side - Form */}
@@ -163,6 +238,7 @@ export default function LoginPage() {
               {/* Tabs */}
               <div className="flex gap-2 mb-8 bg-gray-100 p-1.5 rounded-xl">
                 <button
+                  type="button"
                   onClick={() => setActiveTab('signin')}
                   className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-all ${
                     activeTab === 'signin'
@@ -173,6 +249,7 @@ export default function LoginPage() {
                   Sign In
                 </button>
                 <button
+                  type="button"
                   onClick={() => setActiveTab('signup')}
                   className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-all ${
                     activeTab === 'signup'
@@ -339,10 +416,12 @@ export default function LoginPage() {
 
                   <motion.button
                     type="submit"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="w-full py-4 bg-gradient-to-r from-blue-500 to-teal-500 text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-xl transition-all"
+                    disabled={loading}
+                    whileHover={{ scale: loading ? 1 : 1.02 }}
+                    whileTap={{ scale: loading ? 1 : 0.98 }}
+                    className="w-full py-4 bg-gradient-to-r from-blue-500 to-teal-500 text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
+                    {loading && <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
                     {activeTab === 'signin' ? 'Sign In' : 'Create Account'}
                   </motion.button>
                 </motion.form>
@@ -364,6 +443,9 @@ export default function LoginPage() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   type="button"
+                  onClick={() => signIn('google', {
+                    callbackUrl: '/auth/callback',
+                  })}
                   className="flex items-center justify-center gap-3 px-4 py-3.5 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all bg-white/50 backdrop-blur-sm"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">

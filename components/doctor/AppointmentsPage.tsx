@@ -1,14 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { Calendar as CalendarIcon, Clock, CheckCircle, XCircle, Plus, Search } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, CheckCircle, XCircle, Plus, Search, Video } from 'lucide-react';
 import { useDoctorState, Appointment } from './DoctorStateContext';
+import CalendarEventBadge from '@/components/ui/CalendarEventBadge';
 
 export default function AppointmentsPage() {
-  const { appointments, setAppointments, addNotification } = useDoctorState();
+  const { appointments, setAppointments, addNotification, patients } = useDoctorState();
   const [activeTab, setActiveTab] = useState<'All' | 'Confirmed' | 'Pending' | 'Cancelled'>('All');
   const [isScheduling, setIsScheduling] = useState(false);
-  const [newAppt, setNewAppt] = useState({ patientName: '', date: '', time: '', type: 'Consultation', mode: 'Offline' as 'Online' | 'Offline' });
+  const [newAppt, setNewAppt] = useState({ patientName: '', patientId: '', date: '', time: '', type: 'Consultation', mode: 'Offline' as 'Online' | 'Offline' });
 
   const filteredAppointments = appointments.filter(apt =>
     activeTab === 'All' ? true : apt.status === activeTab
@@ -23,42 +24,71 @@ export default function AppointmentsPage() {
     }
   };
 
-  const handleUpdateStatus = (id: number, status: 'Confirmed' | 'Cancelled') => {
+  const handleUpdateStatus = async (id: string, status: 'Confirmed' | 'Cancelled') => {
+    // Optimistic update
     setAppointments(appointments.map(apt => apt.id === id ? { ...apt, status } : apt));
+
+    const res = await fetch('/api/doctor/appointments', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, status }),
+    });
+
+    // If confirmed, update meetLink and calendarEventLink in state
+    if (res.ok) {
+      const { meetLink, calendarEventLink } = await res.json();
+      setAppointments(prev => prev.map(apt =>
+        apt.id === id
+          ? {
+              ...apt,
+              status,
+              ...(meetLink ? { meetLink } : {}),
+              ...((calendarEventLink !== undefined) ? { calendarEventLink } : {}),
+            }
+          : apt,
+      ));
+    }
+
     const target = appointments.find(a => a.id === id);
     if (target) {
       addNotification({
         title: `Appointment ${status}`,
         message: `Appointment for ${target.patientName} has been ${status.toLowerCase()}`,
-        type: status === 'Confirmed' ? 'appointment' : 'alert'
+        type: status === 'Confirmed' ? 'appointment' : 'alert',
       });
     }
   };
 
-  const handleScheduleSubmit = (e: React.FormEvent) => {
+  const handleScheduleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAppt.patientName || !newAppt.date || !newAppt.time) return;
 
-    const newAppointment: Appointment = {
-      id: Date.now(),
-      patientName: newAppt.patientName,
-      date: newAppt.date,
-      time: newAppt.time,
-      type: newAppt.type,
-      mode: newAppt.mode,
-      status: 'Confirmed',
-      avatar: newAppt.patientName.split(' ')[0]
-    };
+    // Try to resolve patientId from known patients
+    const matchedPatient = patients.find(p =>
+      p.name.toLowerCase() === newAppt.patientName.toLowerCase()
+    );
 
-    setAppointments([...appointments, newAppointment]);
-    addNotification({
-      title: 'New Appointment Scheduled',
-      message: `Scheduled ${newAppt.type} for ${newAppt.patientName}`,
-      type: 'appointment'
+    const res = await fetch('/api/doctor/appointments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...newAppt,
+        patientId: matchedPatient?.userId ?? null,
+      }),
     });
 
+    if (res.ok) {
+      const { appointment } = await res.json();
+      setAppointments(prev => [...prev, appointment]);
+      addNotification({
+        title: 'New Appointment Scheduled',
+        message: `Scheduled ${newAppt.type} for ${newAppt.patientName}`,
+        type: 'appointment'
+      });
+    }
+
     setIsScheduling(false);
-    setNewAppt({ patientName: '', date: '', time: '', type: 'Consultation', mode: 'Offline' });
+    setNewAppt({ patientName: '', patientId: '', date: '', time: '', type: 'Consultation', mode: 'Offline' });
   };
 
   return (
@@ -86,15 +116,31 @@ export default function AppointmentsPage() {
               <label htmlFor="appt-patient" className="block text-sm font-semibold text-gray-700 mb-2">Patient Name</label>
               <div className="relative">
                 <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  id="appt-patient"
-                  type="text"
-                  required
-                  placeholder="Search patient..."
-                  value={newAppt.patientName}
-                  onChange={(e) => setNewAppt({ ...newAppt, patientName: e.target.value })}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                {patients.length > 0 ? (
+                  <select
+                    id="appt-patient"
+                    required
+                    value={newAppt.patientName}
+                    onChange={(e) => {
+                      const p = patients.find(p => p.name === e.target.value);
+                      setNewAppt({ ...newAppt, patientName: e.target.value, patientId: p?.userId ?? '' });
+                    }}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select patient...</option>
+                    {patients.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                  </select>
+                ) : (
+                  <input
+                    id="appt-patient"
+                    type="text"
+                    required
+                    placeholder="Enter patient name..."
+                    value={newAppt.patientName}
+                    onChange={(e) => setNewAppt({ ...newAppt, patientName: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                )}
               </div>
             </div>
             <div>
@@ -201,13 +247,64 @@ export default function AppointmentsPage() {
                     <span className="flex items-center gap-1"><CalendarIcon className="w-4 h-4" /> {apt.date}</span>
                     <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> {apt.time}</span>
                   </p>
+                  {(apt as Appointment & { reason?: string; initiatedBy?: string }).reason && (
+                    <p className="text-xs text-gray-500 mt-1 italic">
+                      &quot;{(apt as Appointment & { reason?: string }).reason}&quot;
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-                <div className="flex flex-col items-end gap-1">
+                <div className="flex flex-col items-end gap-2">
                   <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(apt.status)}`}>{apt.status}</span>
                   <span className="text-xs text-gray-500 font-medium">{apt.type} • {apt.mode}</span>
+                  {(apt as Appointment & { initiatedBy?: string }).initiatedBy === 'patient' && (
+                    <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">Patient Request</span>
+                  )}
+
+                  {/* Google Meet join */}
+                  {apt.status === 'Confirmed' && apt.mode === 'Online' && apt.meetLink && (
+                    <a
+                      href={apt.meetLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full hover:bg-indigo-100 transition-colors border border-indigo-200"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <Video className="w-3.5 h-3.5" /> Join Meet
+                    </a>
+                  )}
+
+                  {/* Calendar badge */}
+                  {apt.status !== 'Cancelled' && (
+                    <CalendarEventBadge
+                      eventLink={(apt as any).calendarEventLink ?? null}
+                      onAdd={async () => {
+                        const res = await fetch('/api/calendar', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            summary: `${apt.type} — ${apt.patientName}`,
+                            description: `Appointment with patient ${apt.patientName}.\nMode: ${apt.mode}${apt.meetLink ? `\n\nJoin Google Meet: ${apt.meetLink}` : ''}`,
+                            date: apt.date,
+                            time: apt.time,
+                            durationMins: 30,
+                          }),
+                        });
+                        if (!res.ok) return null;
+                        const data = await res.json();
+                        const link = data.eventLink ?? null;
+                        if (link) {
+                          setAppointments(prev => prev.map(a =>
+                            a.id === apt.id ? { ...a, calendarEventLink: link } as any : a,
+                          ));
+                        }
+                        return link;
+                      }}
+                      size="sm"
+                    />
+                  )}
                 </div>
 
                 {apt.status === 'Pending' && (

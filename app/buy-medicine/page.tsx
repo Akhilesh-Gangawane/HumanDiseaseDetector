@@ -7,6 +7,7 @@ import NeuralNetworkContainer from '@/components/ui/NeuralNetworkContainer';
 import Footer from '@/components/patient/Footer';
 import { AddressModal, PaymentModal } from '@/components/patient/CheckoutModals';
 import { OrderReviewModal, OrderSuccessModal, ReceiptModal } from '@/components/patient/OrderModals';
+import Swal from 'sweetalert2';
 import { ShoppingCart, Search, Heart, Star, TrendingUp, Package, Clock, Shield, X, Plus, Minus, Pill, ArrowLeft, Zap, Award, CreditCard, Truck, MapPin, Phone, Mail, User, CheckCircle2, Download, Calendar, Home, Building } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -282,7 +283,12 @@ export default function BuyMedicinePage() {
     } else if (promoCode.toUpperCase() === 'SAVE10') {
       setDiscount(cartTotal * 0.10);
     } else {
-      alert('Invalid promo code');
+      Swal.fire({
+        icon: 'error',
+        title: 'Invalid Promo Code',
+        text: 'The promo code you entered is not valid. Try HEALTH25 or SAVE10.',
+        confirmButtonColor: '#0d9488',
+      });
     }
   };
 
@@ -618,7 +624,12 @@ export default function BuyMedicinePage() {
             if (validateAddress()) {
               setCheckoutStep('payment');
             } else {
-              alert('Please fill all required fields');
+              Swal.fire({
+                icon: 'warning',
+                title: 'Missing Details',
+                text: 'Please fill all required address fields before continuing.',
+                confirmButtonColor: '#0d9488',
+              });
             }
           }}
         />
@@ -635,7 +646,12 @@ export default function BuyMedicinePage() {
             if (validatePayment()) {
               setCheckoutStep('review');
             } else {
-              alert('Please fill all payment details');
+              Swal.fire({
+                icon: 'warning',
+                title: 'Incomplete Payment',
+                text: 'Please fill all payment details before continuing.',
+                confirmButtonColor: '#0d9488',
+              });
             }
           }}
         />
