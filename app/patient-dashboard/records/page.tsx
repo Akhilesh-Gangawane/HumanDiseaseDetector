@@ -8,7 +8,7 @@ import NeuralNetworkContainer from '@/components/ui/NeuralNetworkContainer';
 import { useRouter } from 'next/navigation';
 
 interface Prediction { id: string; disease: string; confidence: number; symptoms: string[]; explanation: string; status: string; doctorName: string; createdAt: string; }
-interface LabTest { id: string; testName: string; status: string; priority: string; diagnosisReason: string; labValues: { name: string; value: string; unit: string; referenceRange: string; status: string }[]; requestDate: string; doctorName: string; }
+interface LabTest { id: string; testName: string; status: string; priority: string; diagnosisReason: string; labValues: { name: string; value: string; unit: string; referenceRange: string; status: string }[]; requestDate: string; doctorName: string | null; initiatedBy: string; price: number | null; }
 interface Vital { id: string; date: string; heartRate: number; bloodPressure: { systolic: number; diastolic: number }; glucose: number; temperature: number; }
 interface Prescription { id: string; medicines: { name: string; dosage: string; frequency: string }[]; notes: string; issuedDate: string; doctorName: string; }
 interface Recording { id: string; title: string; recordingUrl: string; durationMins: number | null; notes: string; doctorName: string; appointmentDate: string; appointmentTime: string; appointmentType: string; createdAt: string; }
@@ -169,9 +169,24 @@ export default function PatientRecordsPage() {
                         <span className="text-lg font-bold text-gray-900">{t.testName}</span>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor(t.status)}`}>{t.status}</span>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${priorityColor(t.priority)}`}>{t.priority}</span>
+                        {t.initiatedBy === 'patient' ? (
+                          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-teal-100 text-teal-700">Self-Booked</span>
+                        ) : (
+                          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700">Doctor-Ordered</span>
+                        )}
                       </div>
-                      <p className="text-sm text-gray-500">By {t.doctorName} · {t.requestDate}</p>
-                      {t.diagnosisReason && <p className="text-sm text-gray-600 mt-1">{t.diagnosisReason}</p>}
+                      <p className="text-sm text-gray-500">
+                        {t.initiatedBy === 'patient'
+                          ? `Self-booked · ${t.requestDate}`
+                          : `Ordered by Dr. ${t.doctorName ?? 'Your Doctor'} · ${t.requestDate}`
+                        }
+                      </p>
+                      {t.initiatedBy === 'patient' && t.price != null && (
+                        <p className="text-sm font-semibold text-teal-600 mt-1">₹{t.price.toLocaleString('en-IN')}</p>
+                      )}
+                      {t.diagnosisReason && t.diagnosisReason !== 'Patient self-booked' && (
+                        <p className="text-sm text-gray-600 mt-1">{t.diagnosisReason}</p>
+                      )}
                     </div>
                     {expandedId === t.id ? <ChevronUp className="w-5 h-5 text-gray-400 shrink-0" /> : <ChevronDown className="w-5 h-5 text-gray-400 shrink-0" />}
                   </div>
@@ -190,6 +205,13 @@ export default function PatientRecordsPage() {
                           </div>
                         ))}
                       </div>
+                    </div>
+                  )}
+                  {expandedId === t.id && t.labValues.length === 0 && (
+                    <div className="px-5 pb-5 border-t border-gray-100 pt-4 text-center">
+                      <p className="text-sm text-blue-600 font-medium">
+                        {t.status === 'Completed' ? 'Results recorded — no detailed values available.' : 'Results will appear here once the test is completed.'}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -296,7 +318,7 @@ export default function PatientRecordsPage() {
   );
 }
 
-function EmptyState({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
+function EmptyState({ icon: Icon, label }: { icon: React.ElementType<{ className?: string }>; label: string }) {
   return (
     <div className="text-center py-20 text-gray-400">
       <Icon className="w-12 h-12 mx-auto mb-3 opacity-20" />

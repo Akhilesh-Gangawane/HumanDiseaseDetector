@@ -1,6 +1,7 @@
 'use client';
 
 import { X, MapPin, CreditCard, CheckCircle2, Download, Calendar, Truck, Home, Building, User, Phone, Mail } from 'lucide-react';
+import { ScrollLock } from '@/hooks/useScrollLock';
 
 interface Address {
   fullName: string;
@@ -54,6 +55,7 @@ interface AddressModalProps {
 export function AddressModal({ address, onAddressChange, onBack, onContinue }: AddressModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+      <ScrollLock />
       <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto">
         <button
           onClick={onBack}
@@ -238,6 +240,7 @@ interface PaymentModalProps {
 export function PaymentModal({ payment, onPaymentChange, total, onBack, onContinue }: PaymentModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+      <ScrollLock />
       <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto">
         <button
           onClick={onBack}

@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   User, Mail, Phone, MapPin, Calendar, Heart, Activity, 
   FileText, Edit2, Save, X, Camera, Shield, Clock, 
-  Droplet, Scale, Ruler, AlertCircle, CheckCircle2, ArrowLeft
+  Droplet, Scale, Ruler, AlertCircle, CheckCircle2, ArrowLeft, Loader2
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -81,6 +81,36 @@ export default function PatientProfile() {
   const [newMedication, setNewMedication] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // Avatar state
+  const [avatarUrl, setAvatarUrl] = useState<string>('');
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarError(null);
+    setAvatarUploading(true);
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const res = await fetch('/api/user/avatar', { method: 'POST', body: form });
+      const json = await res.json();
+      if (!res.ok) {
+        setAvatarError(json.error ?? 'Upload failed');
+      } else {
+        setAvatarUrl(json.avatarUrl);
+      }
+    } catch {
+      setAvatarError('Upload failed. Please try again.');
+    } finally {
+      setAvatarUploading(false);
+      // Reset input so same file can be re-selected
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   // Load user + patient data via API route (uses service role, bypasses RLS)
   useEffect(() => {
     if (!session?.user?.email) return;
@@ -118,6 +148,7 @@ export default function PatientProfile() {
       };
       setPatientData(merged);
       setEditedData(merged);
+      setAvatarUrl(userRow.avatar_url ?? session?.user?.image ?? '');
       setLoading(false);
     };
     fetchProfile();
@@ -259,16 +290,46 @@ export default function PatientProfile() {
             <div className="flex items-center space-x-6 mb-6 md:mb-0">
               {/* Profile Picture */}
               <div className="relative">
-                <div className="w-32 h-32 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center text-white text-4xl font-bold shadow-xl">
-                  {data.firstName[0]}{data.lastName[0]}
-                </div>
-                <button 
-                  className="absolute bottom-0 right-0 p-2 bg-white rounded-full shadow-lg hover:scale-110 transition-transform border-2 border-blue-500"
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={`${data.firstName} ${data.lastName}`}
+                    className="w-32 h-32 rounded-full object-cover shadow-xl border-4 border-white"
+                  />
+                ) : (
+                  <div className="w-32 h-32 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center text-white text-4xl font-bold shadow-xl">
+                    {data.firstName[0]}{data.lastName[0]}
+                  </div>
+                )}
+
+                {/* Hidden file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                  aria-label="Upload profile photo"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={avatarUploading}
+                  className="absolute bottom-0 right-0 p-2 bg-white rounded-full shadow-lg hover:scale-110 transition-transform border-2 border-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
                   aria-label="Change profile picture"
                 >
-                  <Camera className="w-5 h-5 text-blue-600" />
+                  {avatarUploading
+                    ? <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                    : <Camera className="w-5 h-5 text-blue-600" />
+                  }
                 </button>
               </div>
+
+              {/* Avatar error */}
+              {avatarError && (
+                <p className="text-xs text-red-500 mt-1 text-center max-w-[140px]">{avatarError}</p>
+              )}
 
               {/* Basic Info */}
               <div>

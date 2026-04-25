@@ -1,27 +1,108 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Video, Mic, Camera, Activity, Settings,
-  Users, Calendar, MessageSquare, Loader2
+  Users, Calendar, MessageSquare, Loader2, Star,
+  FlaskConical, Wifi, ClipboardList
 } from 'lucide-react';
 import { useDoctorState } from './DoctorStateContext';
 import { openGoogleMeet } from '@/lib/videosdk'
 
+/** Measure round-trip latency to the app itself and return a stability % */
+async function measureConnectionStability(): Promise<string> {
+  const samples = 3
+  const latencies: number[] = []
+  for (let i = 0; i < samples; i++) {
+    const t0 = performance.now()
+    try {
+      await fetch('/api/auth/session', { method: 'HEAD', cache: 'no-store' })
+      latencies.push(performance.now() - t0)
+    } catch {
+      latencies.push(2000) // treat failure as high latency
+    }
+  }
+  const avg = latencies.reduce((a, b) => a + b, 0) / latencies.length
+  // Map latency to stability: <100ms=100%, <300ms=95%, <600ms=85%, <1000ms=70%, else 50%
+  if (avg < 100) return '100%'
+  if (avg < 300) return '95%'
+  if (avg < 600) return '85%'
+  if (avg < 1000) return '70%'
+  return '50%'
+}
+
 export default function ConsultDoctor() {
-  const { appointments } = useDoctorState()
+  const { appointments, testRequests } = useDoctorState()
   const [activeTab, setActiveTab] = useState('upcoming')
   const [currentTime, setCurrentTime] = useState('')
+  const [connectionStability, setConnectionStability] = useState<string>('—')
+  const [stabilityLoading, setStabilityLoading] = useState(true)
 
+  // Live clock
   useEffect(() => {
-    const timer = setInterval(() => {
+    const tick = () =>
       setCurrentTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
-    }, 1000)
+    tick()
+    const timer = setInterval(tick, 1000)
     return () => clearInterval(timer)
   }, [])
 
+  // Connection stability — measure once on mount, refresh every 60s
+  useEffect(() => {
+    let cancelled = false
+    const measure = async () => {
+      setStabilityLoading(true)
+      const result = await measureConnectionStability()
+      if (!cancelled) {
+        setConnectionStability(result)
+        setStabilityLoading(false)
+      }
+    }
+    measure()
+    const interval = setInterval(measure, 60_000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [])
+
+  // Today's confirmed online appointments
+  const todayStr = new Date().toISOString().split('T')[0]
+  const todayPatients = appointments.filter(
+    apt => apt.mode === 'Online' && apt.status === 'Confirmed' && apt.date === todayStr
+  ).length
+
+  // Average rating derived from confirmed / total appointment ratio → score out of 5
+  const totalApts = appointments.length
+  const confirmedApts = appointments.filter(a => a.status === 'Confirmed').length
+  const avgRating = totalApts > 0
+    ? ((confirmedApts / totalApts) * 5).toFixed(1)
+    : '—'
+
   const upcomingAppointments = appointments.filter(apt => apt.mode === 'Online' && apt.status === 'Confirmed')
+
+  const stats = [
+    {
+      icon: Users,
+      label: "Today's Patients",
+      value: todayPatients.toString(),
+      bg: 'bg-indigo-100', text: 'text-indigo-600', hover: 'bg-indigo-50',
+      loading: false,
+    },
+    {
+      icon: Activity,
+      label: 'Connection Stability',
+      value: connectionStability,
+      bg: 'bg-emerald-100', text: 'text-emerald-600', hover: 'bg-emerald-50',
+      loading: stabilityLoading,
+    },
+    {
+      icon: Star,
+      label: 'Completion Rate',
+      value: avgRating === '—' ? '—' : `${avgRating}/5`,
+      bg: 'bg-purple-100', text: 'text-purple-600', hover: 'bg-purple-50',
+      loading: false,
+      title: 'Based on confirmed vs total appointments',
+    },
+  ]
 
   return (
     <div className="w-full p-6 md:p-8">
@@ -51,18 +132,21 @@ export default function ConsultDoctor() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-8 flex flex-col gap-8">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {[
-              { icon: Users, label: "Today's Patients", value: '12', bg: 'bg-indigo-100', text: 'text-indigo-600', hover: 'bg-indigo-50' },
-              { icon: Activity, label: 'Connection Stability', value: '98%', bg: 'bg-emerald-100', text: 'text-emerald-600', hover: 'bg-emerald-50' },
-              { icon: Calendar, label: 'Average Rating', value: '4.9', bg: 'bg-purple-100', text: 'text-purple-600', hover: 'bg-purple-50' },
-            ].map(({ icon: Icon, label, value, bg, text, hover }) => (
-              <div key={label} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+            {stats.map(({ icon: Icon, label, value, bg, text, hover, loading, title }) => (
+              <div key={label} title={title} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
                 <div className={`absolute -right-6 -top-6 w-24 h-24 ${hover} rounded-full group-hover:scale-150 transition-transform duration-500 ease-out`} />
                 <div className="relative">
                   <div className={`w-12 h-12 ${bg} ${text} rounded-2xl flex items-center justify-center mb-4`}>
                     <Icon className="w-6 h-6" />
                   </div>
-                  <h3 className="text-3xl font-black text-gray-900 mb-1">{value}</h3>
+                  {loading ? (
+                    <div className="flex items-center gap-2 mb-1">
+                      <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                      <span className="text-sm text-gray-400">Measuring…</span>
+                    </div>
+                  ) : (
+                    <h3 className="text-3xl font-black text-gray-900 mb-1">{value}</h3>
+                  )}
                   <p className="text-gray-500 font-medium">{label}</p>
                 </div>
               </div>
@@ -146,16 +230,73 @@ export default function ConsultDoctor() {
 
           <div className="bg-white rounded-3xl border border-gray-100 p-6 flex-1 shadow-sm">
             <h3 className="font-bold text-gray-900 mb-4">Before the call</h3>
-            <ul className="space-y-3 text-sm text-gray-600">
-              <li className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
-                <p>Review <span className="font-bold text-gray-900">Eleanor Pena&apos;s</span> latest lab results uploaded at 8:00 AM.</p>
-              </li>
-              <li className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
-                <p>Check telemetry sync status with the patient&apos;s wearable device.</p>
-              </li>
-            </ul>
+            {(() => {
+              // Next upcoming online confirmed appointment
+              const next = upcomingAppointments[0]
+
+              if (!next) {
+                return (
+                  <p className="text-sm text-gray-400 italic">No upcoming online appointments scheduled.</p>
+                )
+              }
+
+              // Pending lab tests for this patient
+              const pendingTests = testRequests.filter(
+                t => t.patientId === next.patientId && t.status === 'Pending'
+              )
+
+              const checklist: { icon: React.ElementType<{ className?: string }>; text: React.ReactNode }[] = []
+
+              if (pendingTests.length > 0) {
+                checklist.push({
+                  icon: FlaskConical,
+                  text: (
+                    <>
+                      Review <span className="font-bold text-gray-900">{next.patientName}&apos;s</span> pending lab test{pendingTests.length > 1 ? 's' : ''}:{' '}
+                      <span className="font-semibold text-indigo-700">
+                        {pendingTests.map(t => t.testName).join(', ')}
+                      </span>.
+                    </>
+                  ),
+                })
+              } else {
+                checklist.push({
+                  icon: FlaskConical,
+                  text: (
+                    <>
+                      No pending lab tests for <span className="font-bold text-gray-900">{next.patientName}</span>.
+                    </>
+                  ),
+                })
+              }
+
+              checklist.push({
+                icon: Wifi,
+                text: `Confirm ${next.patientName} is connected — appointment at ${next.time} (${next.type}).`,
+              })
+
+              checklist.push({
+                icon: ClipboardList,
+                text: (
+                  <>
+                    Review appointment notes{next.reason ? <>: <span className="italic text-gray-700">&quot;{next.reason}&quot;</span></> : ' — no reason provided.'}.
+                  </>
+                ),
+              })
+
+              return (
+                <ul className="space-y-3 text-sm text-gray-600">
+                  {checklist.map(({ icon: Icon, text }, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0 mt-0.5">
+                        <Icon className="w-3.5 h-3.5 text-indigo-500" />
+                      </div>
+                      <p>{text}</p>
+                    </li>
+                  ))}
+                </ul>
+              )
+            })()}
           </div>
         </div>
       </div>

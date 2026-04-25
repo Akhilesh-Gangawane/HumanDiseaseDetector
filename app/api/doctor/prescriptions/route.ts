@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/authOptions'
 import { supabaseServer } from '@/lib/supabaseServer'
 
 async function getDoctorRow(email: string) {
@@ -29,7 +29,7 @@ export async function GET() {
   return NextResponse.json({ prescriptions: data ?? [] })
 }
 
-// POST /api/doctor/prescriptions — issue a prescription
+// POST /api/doctor/prescriptions â€” issue a prescription
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

@@ -1,6 +1,7 @@
 'use client';
 
 import { X, Calendar, MapPin, CreditCard, CheckCircle2, Download, Phone, Mail, Home, Building, Clock } from 'lucide-react';
+import { ScrollLock } from '@/hooks/useScrollLock';
 
 interface Test {
   id: number;
@@ -71,6 +72,7 @@ export function PathologyAddressModal({ address, onAddressChange, onBack, onCont
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+      <ScrollLock />
       <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto">
         <button
           onClick={onBack}
@@ -207,6 +209,7 @@ export function PathologyAddressModal({ address, onAddressChange, onBack, onCont
                 onChange={(e) => onAddressChange({ ...address, preferredDate: e.target.value })}
                 min={today}
                 max={maxDateStr}
+                aria-label="Preferred collection date"
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
               />
             </div>
@@ -271,6 +274,7 @@ interface PathologyPaymentModalProps {
 export function PathologyPaymentModal({ payment, onPaymentChange, total, onBack, onContinue }: PathologyPaymentModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+      <ScrollLock />
       <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto">
         <button
           onClick={onBack}

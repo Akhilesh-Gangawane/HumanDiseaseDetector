@@ -1,6 +1,7 @@
 'use client';
 
 import { X, CheckCircle2, Download, Calendar, Truck, MapPin, CreditCard, Package, Phone, Mail } from 'lucide-react';
+import { ScrollLock } from '@/hooks/useScrollLock';
 
 interface Address {
   fullName: string;
@@ -25,11 +26,11 @@ interface PaymentDetails {
 }
 
 interface CartItem {
-  id: number;
+  id: string;
   name: string;
   price: number;
   quantity: number;
-  image: string;
+  image?: string;
   manufacturer?: string;
 }
 
@@ -58,18 +59,11 @@ interface OrderReviewModalProps {
 }
 
 export function OrderReviewModal({
-  cart,
-  address,
-  payment,
-  subtotal,
-  deliveryFee,
-  discount,
-  total,
-  onBack,
-  onPlaceOrder
+  cart, address, payment, subtotal, deliveryFee, discount, total, onBack, onPlaceOrder
 }: OrderReviewModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+      <ScrollLock />
       <div className="relative w-full max-w-3xl bg-white rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto">
         <button
           onClick={onBack}
@@ -96,7 +90,7 @@ export function OrderReviewModal({
             {cart.map((item) => (
               <div key={item.id} className="flex items-center space-x-4 bg-gray-50 rounded-xl p-4">
                 <div className="w-16 h-16 bg-gradient-to-br from-green-50 to-teal-50 rounded-xl flex items-center justify-center text-3xl">
-                  {item.image}
+                  {item.image ?? '💊'}
                 </div>
                 <div className="flex-1">
                   <h4 className="font-semibold text-gray-800">{item.name}</h4>
@@ -210,6 +204,7 @@ interface OrderSuccessModalProps {
 export function OrderSuccessModal({ order, onClose, onViewReceipt }: OrderSuccessModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+      <ScrollLock />
       <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-8">
         <button
           onClick={onClose}
@@ -288,12 +283,10 @@ interface ReceiptModalProps {
 }
 
 export function ReceiptModal({ order, onClose }: ReceiptModalProps) {
-  const handleDownload = () => {
-    window.print();
-  };
-
+  const handleDownload = () => { window.print(); };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+      <ScrollLock />
       <div className="relative w-full max-w-3xl bg-white rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto">
         <button
           onClick={onClose}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/authOptions'
 import { supabaseServer } from '@/lib/supabaseServer'
 
 async function getPatientRow(email: string) {
@@ -10,7 +10,7 @@ async function getPatientRow(email: string) {
   return data
 }
 
-// POST /api/patient/predictions — patient runs a prediction, saves it, notifies all their doctors
+// POST /api/patient/predictions â€” patient runs a prediction, saves it, notifies all their doctors
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ prediction: data })
 }
 
-// GET /api/patient/predictions — fetch patient's own predictions
+// GET /api/patient/predictions â€” fetch patient's own predictions
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

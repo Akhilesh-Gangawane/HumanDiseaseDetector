@@ -6,6 +6,7 @@ import {
   Mic, Phone, PhoneOff,
   Clock, Volume2, Sparkles, AlertCircle, Loader2,
   MessageSquare, User, Bot, CheckCircle2, Calendar, FlaskConical, Pill,
+  ShoppingBag, XCircle,
 } from 'lucide-react';
 
 /* ─── Types ─────────────────────────────────────────────── */
@@ -16,6 +17,13 @@ interface TranscriptLine {
   text: string;
 }
 
+interface ActionResult {
+  type: 'appointment' | 'lab' | 'medicine';
+  success: boolean;
+  message: string;
+  data?: Record<string, unknown>;
+}
+
 interface CallLog {
   id: string;
   startedAt: string;
@@ -23,6 +31,7 @@ interface CallLog {
   transcript: TranscriptLine[];
   summary: string;
   intent: Intent;
+  actions?: ActionResult[];
 }
 
 /* ─── Helpers ────────────────────────────────────────────── */
@@ -94,6 +103,7 @@ export default function VoiceAssistant() {
   const [saving, setSaving]             = useState(false);
   const [savedOk, setSavedOk]           = useState(false);
   const [activeLog, setActiveLog]       = useState<string | null>(null);
+  const [lastActions, setLastActions]   = useState<ActionResult[]>([]);
 
   const vapiRef       = useRef<Vapi | null>(null);
   const timerRef      = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -193,42 +203,52 @@ export default function VoiceAssistant() {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
   }
 
-  /* ── Save call log to DB + notify doctor ── */
+  /* ── Save call log to DB + notify doctor + execute actions ── */
   async function saveCallLog() {
     const lines = transcriptRef.current;
-    if (lines.length === 0) return; // nothing to save for empty calls
+    if (lines.length === 0) return;
 
     setSaving(true);
     const intent  = detectIntent(lines);
     const summary = buildSummary(lines);
     const duration = elapsedRef.current;
+    const transcriptText = lines.map(l => `${l.role === 'user' ? 'Patient' : 'Assistant'}: ${l.text}`).join('\n');
+
+    let executedActions: ActionResult[] = [];
 
     try {
-      const res = await fetch('/api/patient/call-logs', {
+      // 1. Save the call log (notifies doctor)
+      await fetch('/api/patient/call-logs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          duration,
-          transcript: lines.map(l => `${l.role === 'user' ? 'Patient' : 'Assistant'}: ${l.text}`).join('\n'),
-          summary,
-          intent,
-        }),
+        body: JSON.stringify({ duration, transcript: transcriptText, summary, intent }),
       });
 
-      if (res.ok) {
-        setSavedOk(true);
-        // Add to local log list
-        const newLog: CallLog = {
-          id: crypto.randomUUID(),
-          startedAt: startedAtRef.current,
-          duration,
-          transcript: lines,
-          summary,
-          intent,
-        };
-        setCallLogs(prev => [newLog, ...prev]);
-        setActiveLog(newLog.id);
+      // 2. Parse transcript and execute real actions (book appointments, labs, medicines)
+      const actionsRes = await fetch('/api/patient/voice-actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript: transcriptText }),
+      });
+
+      if (actionsRes.ok) {
+        const actionsData = await actionsRes.json();
+        executedActions = actionsData.actions ?? [];
+        setLastActions(executedActions);
       }
+
+      setSavedOk(true);
+      const newLog: CallLog = {
+        id: crypto.randomUUID(),
+        startedAt: startedAtRef.current,
+        duration,
+        transcript: lines,
+        summary,
+        intent,
+        actions: executedActions,
+      };
+      setCallLogs(prev => [newLog, ...prev]);
+      setActiveLog(newLog.id);
     } catch (err) {
       console.error('[call-log save]', err);
     } finally {
@@ -289,9 +309,46 @@ export default function VoiceAssistant() {
 
         {/* Saved banner */}
         {savedOk && !isActive && (
-          <div className="mb-8 flex items-center gap-3 px-5 py-4 bg-green-500/10 border border-green-400/30 rounded-2xl text-green-300 text-sm">
-            <CheckCircle2 className="w-5 h-5 shrink-0" />
-            Call log saved and your doctor has been notified.
+          <div className="mb-8 space-y-3">
+            <div className="flex items-center gap-3 px-5 py-4 bg-green-500/10 border border-green-400/30 rounded-2xl text-green-300 text-sm">
+              <CheckCircle2 className="w-5 h-5 shrink-0" />
+              Call log saved and your doctor has been notified.
+            </div>
+
+            {/* Action result cards */}
+            {lastActions.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-white/50 text-xs uppercase tracking-wider px-1">Actions taken from your call</p>
+                {lastActions.map((action, i) => (
+                  <div
+                    key={i}
+                    className={`flex items-start gap-3 px-5 py-4 rounded-2xl border text-sm ${
+                      action.success
+                        ? 'bg-emerald-500/10 border-emerald-400/30 text-emerald-200'
+                        : 'bg-red-500/10 border-red-400/30 text-red-300'
+                    }`}
+                  >
+                    <span className="shrink-0 mt-0.5">
+                      {action.success
+                        ? action.type === 'appointment' ? <Calendar className="w-5 h-5" />
+                          : action.type === 'lab' ? <FlaskConical className="w-5 h-5" />
+                          : <ShoppingBag className="w-5 h-5" />
+                        : <XCircle className="w-5 h-5" />
+                      }
+                    </span>
+                    <div className="min-w-0">
+                      <p className="font-semibold capitalize">
+                        {action.success ? '✅' : '❌'}{' '}
+                        {action.type === 'appointment' ? 'Appointment Booked'
+                          : action.type === 'lab' ? 'Lab Tests Booked'
+                          : 'Medicine Order Placed'}
+                      </p>
+                      <p className="text-xs opacity-80 mt-0.5">{action.message}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -467,21 +524,48 @@ export default function VoiceAssistant() {
                           <span className="text-white/30 text-xs shrink-0 mt-1">{isOpen ? '▲' : '▼'}</span>
                         </button>
 
-                        {/* Expanded transcript */}
-                        {isOpen && log.transcript.length > 0 && (
-                          <div className="px-4 pb-4 space-y-2 border-t border-white/10 pt-3">
-                            <p className="text-white/40 text-xs uppercase tracking-wider mb-2">Transcript</p>
-                            {log.transcript.map((line, i) => (
-                              <div key={i} className={`flex gap-2 text-xs ${line.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                {line.role === 'assistant' && <Bot className="w-3.5 h-3.5 text-teal-400 shrink-0 mt-0.5" />}
-                                <span className={`px-3 py-1.5 rounded-xl max-w-[85%] leading-relaxed ${
-                                  line.role === 'user'
-                                    ? 'bg-blue-500/30 text-blue-100'
-                                    : 'bg-white/10 text-white/80'
-                                }`}>{line.text}</span>
-                                {line.role === 'user' && <User className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />}
+                        {/* Expanded transcript + actions */}
+                        {isOpen && (
+                          <div className="px-4 pb-4 border-t border-white/10 pt-3 space-y-4">
+                            {/* Actions taken */}
+                            {log.actions && log.actions.length > 0 && (
+                              <div className="space-y-2">
+                                <p className="text-white/40 text-xs uppercase tracking-wider">Actions Taken</p>
+                                {log.actions.map((action, i) => (
+                                  <div
+                                    key={i}
+                                    className={`flex items-start gap-2 px-3 py-2 rounded-xl text-xs border ${
+                                      action.success
+                                        ? 'bg-emerald-500/10 border-emerald-400/20 text-emerald-300'
+                                        : 'bg-red-500/10 border-red-400/20 text-red-300'
+                                    }`}
+                                  >
+                                    {action.type === 'appointment' ? <Calendar className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                                      : action.type === 'lab' ? <FlaskConical className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                                      : <ShoppingBag className="w-3.5 h-3.5 shrink-0 mt-0.5" />}
+                                    <span>{action.message}</span>
+                                  </div>
+                                ))}
                               </div>
-                            ))}
+                            )}
+
+                            {/* Transcript */}
+                            {log.transcript.length > 0 && (
+                              <div className="space-y-2">
+                                <p className="text-white/40 text-xs uppercase tracking-wider">Transcript</p>
+                                {log.transcript.map((line, i) => (
+                                  <div key={i} className={`flex gap-2 text-xs ${line.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    {line.role === 'assistant' && <Bot className="w-3.5 h-3.5 text-teal-400 shrink-0 mt-0.5" />}
+                                    <span className={`px-3 py-1.5 rounded-xl max-w-[85%] leading-relaxed ${
+                                      line.role === 'user'
+                                        ? 'bg-blue-500/30 text-blue-100'
+                                        : 'bg-white/10 text-white/80'
+                                    }`}>{line.text}</span>
+                                    {line.role === 'user' && <User className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

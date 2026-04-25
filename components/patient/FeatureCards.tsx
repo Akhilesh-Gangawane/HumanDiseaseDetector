@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Brain, MessageSquare, X } from 'lucide-react';
 import ChatAssistant from './ChatAssistant';
+import { ScrollLock } from '@/hooks/useScrollLock';
 
 export default function FeatureCards() {
   const router = useRouter();
@@ -59,6 +60,7 @@ export default function FeatureCards() {
       {/* AI Chat Assistant Modal */}
       {showChat && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <ScrollLock />
           <div className="relative w-full max-w-2xl h-[90vh]">
             <button
               onClick={() => setShowChat(false)}

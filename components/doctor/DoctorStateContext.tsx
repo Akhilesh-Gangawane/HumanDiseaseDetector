@@ -38,6 +38,7 @@ export type Prediction = {
   symptoms: string[];
   explanation: string;
   status: 'Pending' | 'Approved' | 'Modified';
+  initiatedBy?: 'doctor' | 'patient';
 };
 
 export type LabResult = {
@@ -57,9 +58,14 @@ export type TestRequest = {
   requestedByDoctorId: number;
   requestedByDoctorName: string;
   requestDate: string;
+  orderedDate?: string;
   status: 'Pending' | 'In Progress' | 'Completed';
   priority: 'Normal' | 'High' | 'Urgent';
   diagnosisReason: string;
+  reason?: string;
+  result?: string;
+  initiatedBy?: 'doctor' | 'patient';
+  price?: number | null;
   labValues?: {
     name: string;
     value: string;

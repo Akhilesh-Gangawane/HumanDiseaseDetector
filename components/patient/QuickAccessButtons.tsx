@@ -1,10 +1,32 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { Package, Pill, FlaskConical, Stethoscope, FileText, Bell, Calendar, PhoneCall } from 'lucide-react';
+
+interface PatientStats {
+  totalOrders: number;
+  labTests: number;
+  consultations: number;
+}
 
 export default function QuickAccessButtons() {
   const router = useRouter();
+  const [stats, setStats] = useState<PatientStats>({ totalOrders: 0, labTests: 0, consultations: 0 });
+
+  useEffect(() => {
+    fetch('/api/public/orders')
+      .then(r => r.json())
+      .then(d => {
+        const orders = d.orders ?? [];
+        setStats({
+          totalOrders: orders.length,
+          labTests: orders.filter((o: { type: string }) => o.type === 'pathology').length,
+          consultations: orders.filter((o: { type: string }) => o.type === 'consultation').length,
+        });
+      })
+      .catch(() => {});
+  }, []);
 
   const quickActions = [
     {
@@ -146,22 +168,18 @@ export default function QuickAccessButtons() {
         </div>
 
         {/* Additional Stats */}
-        <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="mt-12 grid grid-cols-2 md:grid-cols-3 gap-6">
           <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-teal-50 rounded-xl">
-            <div className="text-3xl font-bold text-blue-600 mb-1">12</div>
+            <div className="text-3xl font-bold text-blue-600 mb-1">{stats.totalOrders}</div>
             <div className="text-sm text-gray-600">Total Orders</div>
           </div>
           <div className="text-center p-6 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl">
-            <div className="text-3xl font-bold text-purple-600 mb-1">5</div>
+            <div className="text-3xl font-bold text-purple-600 mb-1">{stats.labTests}</div>
             <div className="text-sm text-gray-600">Lab Tests Done</div>
           </div>
           <div className="text-center p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl">
-            <div className="text-3xl font-bold text-green-600 mb-1">8</div>
+            <div className="text-3xl font-bold text-green-600 mb-1">{stats.consultations}</div>
             <div className="text-sm text-gray-600">Consultations</div>
-          </div>
-          <div className="text-center p-6 bg-gradient-to-br from-orange-50 to-red-50 rounded-xl">
-            <div className="text-3xl font-bold text-orange-600 mb-1">98%</div>
-            <div className="text-sm text-gray-600">Health Score</div>
           </div>
         </div>
       </div>

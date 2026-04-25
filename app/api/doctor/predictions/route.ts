@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/authOptions'
 import { supabaseServer } from '@/lib/supabaseServer'
 
 async function getDoctorId(email: string) {
@@ -54,7 +54,7 @@ export async function GET() {
   return NextResponse.json({ predictions })
 }
 
-// POST /api/doctor/predictions — save a new prediction
+// POST /api/doctor/predictions â€” save a new prediction
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
       symptoms: symptoms ?? [],
       explanation: explanation ?? '',
       status: 'Pending',
+      initiated_by: 'doctor',
     })
     .select().single()
 
@@ -96,11 +97,11 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({
-    prediction: { id: data.id, patient: data.patient_name, disease: data.disease, confidence: data.confidence, symptoms: data.symptoms, explanation: data.explanation, status: data.status }
+    prediction: { id: data.id, patient: data.patient_name, disease: data.disease, confidence: data.confidence, symptoms: data.symptoms, explanation: data.explanation, status: data.status, initiatedBy: 'doctor' }
   })
 }
 
-// PATCH /api/doctor/predictions — update status
+// PATCH /api/doctor/predictions â€” update status
 export async function PATCH(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

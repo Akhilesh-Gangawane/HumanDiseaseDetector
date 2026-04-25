@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/authOptions'
 import { supabaseServer } from '@/lib/supabaseServer'
 
 async function getDoctorRow(email: string) {
@@ -52,12 +52,13 @@ export async function GET() {
     diagnosisReason: t.diagnosis_reason ?? '',
     labValues: t.lab_values ?? [],
     initiatedBy: t.initiated_by ?? 'doctor',
+    price: t.price ?? null,
   }))
 
   return NextResponse.json({ tests })
 }
 
-// POST /api/doctor/lab-tests — create new test request
+// POST /api/doctor/lab-tests â€” create new test request
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -111,7 +112,7 @@ export async function POST(req: NextRequest) {
   })
 }
 
-// PATCH /api/doctor/lab-tests — update status / add lab values
+// PATCH /api/doctor/lab-tests â€” update status / add lab values
 export async function PATCH(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

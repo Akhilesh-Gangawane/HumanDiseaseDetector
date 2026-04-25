@@ -1,111 +1,51 @@
 'use client';
 
-import { useState } from 'react';
-import { Package, FlaskConical, Stethoscope, Calendar, MapPin, Clock, Download, Eye, X, CheckCircle2, Truck, Loader2, AlertCircle, Phone, Mail } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Package, FlaskConical, Stethoscope, Calendar, MapPin, Clock, Download, Eye, X, CheckCircle2, Truck, Loader2, AlertCircle, Video } from 'lucide-react';
+import { ScrollLock } from '@/hooks/useScrollLock';
+
+interface OrderItem {
+  name: string;
+  quantity?: number;
+  price: number;
+}
 
 interface Order {
   id: string;
   type: 'medicine' | 'pathology' | 'consultation';
-  date: Date;
-  status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'completed' | 'cancelled';
+  date: string;
+  status: string;
   total: number;
-  items: Array<{
-    name: string;
-    quantity?: number;
-    price: number;
-  }>;
-  deliveryAddress?: string;
-  collectionDate?: Date;
-  collectionTime?: string;
+  items: OrderItem[];
   doctorName?: string;
-  appointmentDate?: Date;
+  appointmentDate?: string;
   appointmentTime?: string;
-  trackingId?: string;
-  estimatedDelivery?: Date;
+  meetLink?: string | null;
+  collectionDate?: string | null;
+  collectionTime?: string | null;
+  deliveryAddress?: string | null;
+  paymentMethod?: string | null;
+  trackingId?: string | null;
 }
 
-// Sample orders data
-const SAMPLE_ORDERS: Order[] = [
-  {
-    id: 'ORD12345678',
-    type: 'medicine',
-    date: new Date('2024-03-01'),
-    status: 'delivered',
-    total: 1245.50,
-    items: [
-      { name: 'Paracetamol 500mg', quantity: 2, price: 90 },
-      { name: 'Vitamin D3 Tablets', quantity: 1, price: 280 },
-      { name: 'Cetirizine 10mg', quantity: 3, price: 255 }
-    ],
-    deliveryAddress: '123 Main St, Mumbai, Maharashtra - 400001',
-    trackingId: 'TRK987654321',
-    estimatedDelivery: new Date('2024-03-03')
-  },
-  {
-    id: 'LAB87654321',
-    type: 'pathology',
-    date: new Date('2024-03-02'),
-    status: 'completed',
-    total: 1499,
-    items: [
-      { name: 'Complete Blood Count (CBC)', price: 299 },
-      { name: 'Lipid Profile', price: 499 },
-      { name: 'Thyroid Profile', price: 799 }
-    ],
-    deliveryAddress: '123 Main St, Mumbai, Maharashtra - 400001',
-    collectionDate: new Date('2024-03-03'),
-    collectionTime: '8:00 AM - 9:00 AM'
-  },
-  {
-    id: 'DOC45678912',
-    type: 'consultation',
-    date: new Date('2024-03-03'),
-    status: 'confirmed',
-    total: 800,
-    items: [
-      { name: 'Video Consultation', price: 800 }
-    ],
-    doctorName: 'Dr. Sarah Johnson',
-    appointmentDate: new Date('2024-03-05'),
-    appointmentTime: '10:30 AM'
-  },
-  {
-    id: 'ORD23456789',
-    type: 'medicine',
-    date: new Date('2024-03-04'),
-    status: 'shipped',
-    total: 650,
-    items: [
-      { name: 'Amoxicillin 250mg', quantity: 1, price: 120 },
-      { name: 'Omeprazole 20mg', quantity: 2, price: 190 }
-    ],
-    deliveryAddress: '123 Main St, Mumbai, Maharashtra - 400001',
-    trackingId: 'TRK123456789',
-    estimatedDelivery: new Date('2024-03-06')
-  },
-  {
-    id: 'LAB11223344',
-    type: 'pathology',
-    date: new Date('2024-03-04'),
-    status: 'processing',
-    total: 2999,
-    items: [
-      { name: 'Complete Body Checkup Package', price: 2999 }
-    ],
-    deliveryAddress: '123 Main St, Mumbai, Maharashtra - 400001',
-    collectionDate: new Date('2024-03-05'),
-    collectionTime: '7:00 AM - 8:00 AM'
-  }
-];
-
 export default function OrdersBookings() {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState<'all' | 'medicine' | 'pathology' | 'consultation'>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showDetails, setShowDetails] = useState(false);
 
-  const filteredOrders = selectedTab === 'all' 
-    ? SAMPLE_ORDERS 
-    : SAMPLE_ORDERS.filter(order => order.type === selectedTab);
+  useEffect(() => {
+    fetch('/api/public/orders')
+      .then(r => r.json())
+      .then(d => setOrders(d.orders ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filteredOrders = selectedTab === 'all'
+    ? orders
+    : orders.filter(o => o.type === selectedTab);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -184,10 +124,10 @@ export default function OrdersBookings() {
         {/* Filter Tabs */}
         <div className="flex flex-wrap justify-center gap-3 mb-8">
           {[
-            { key: 'all' as const, label: 'All Orders', count: SAMPLE_ORDERS.length },
-            { key: 'medicine' as const, label: 'Medicine', count: SAMPLE_ORDERS.filter(o => o.type === 'medicine').length },
-            { key: 'pathology' as const, label: 'Lab Tests', count: SAMPLE_ORDERS.filter(o => o.type === 'pathology').length },
-            { key: 'consultation' as const, label: 'Consultations', count: SAMPLE_ORDERS.filter(o => o.type === 'consultation').length },
+            { key: 'all' as const, label: 'All Orders', count: orders.length },
+            { key: 'medicine' as const, label: 'Medicine', count: orders.filter(o => o.type === 'medicine').length },
+            { key: 'pathology' as const, label: 'Lab Tests', count: orders.filter(o => o.type === 'pathology').length },
+            { key: 'consultation' as const, label: 'Consultations', count: orders.filter(o => o.type === 'consultation').length },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -205,7 +145,11 @@ export default function OrdersBookings() {
         </div>
 
         {/* Orders Grid */}
-        {filteredOrders.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+          </div>
+        ) : filteredOrders.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-3xl shadow-sm">
             <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-800 mb-2">No orders found</h3>
@@ -231,7 +175,7 @@ export default function OrdersBookings() {
                     </div>
                   </div>
                   <p className="text-sm text-gray-600 mb-1">Order ID: <span className="font-semibold text-gray-800">{order.id}</span></p>
-                  <p className="text-xs text-gray-500">{order.date.toLocaleDateString()}</p>
+                  <p className="text-xs text-gray-500">{new Date(order.date).toLocaleDateString()}</p>
                 </div>
 
                 {/* Items */}
@@ -255,28 +199,36 @@ export default function OrdersBookings() {
 
                 {/* Details */}
                 <div className="p-6 bg-gray-50">
-                  {order.type === 'medicine' && order.estimatedDelivery && (
+                  {order.type === 'medicine' && order.deliveryAddress && (
                     <div className="flex items-center space-x-2 text-sm text-gray-600 mb-3">
-                      <Truck className="w-4 h-4" />
-                      <span>Delivery by {order.estimatedDelivery.toLocaleDateString()}</span>
+                      <MapPin className="w-4 h-4" />
+                      <span className="truncate">{order.deliveryAddress}</span>
                     </div>
                   )}
                   {order.type === 'pathology' && order.collectionDate && (
                     <div className="flex items-center space-x-2 text-sm text-gray-600 mb-3">
                       <Calendar className="w-4 h-4" />
-                      <span>Collection: {order.collectionDate.toLocaleDateString()} at {order.collectionTime}</span>
+                      <span>Collection: {new Date(order.collectionDate).toLocaleDateString()}{order.collectionTime ? ` at ${order.collectionTime}` : ''}</span>
                     </div>
                   )}
                   {order.type === 'consultation' && order.appointmentDate && (
                     <div className="space-y-2 mb-3">
-                      <div className="flex items-center space-x-2 text-sm text-gray-600">
-                        <Stethoscope className="w-4 h-4" />
-                        <span>{order.doctorName}</span>
-                      </div>
+                      {order.doctorName && (
+                        <div className="flex items-center space-x-2 text-sm text-gray-600">
+                          <Stethoscope className="w-4 h-4" />
+                          <span>{order.doctorName}</span>
+                        </div>
+                      )}
                       <div className="flex items-center space-x-2 text-sm text-gray-600">
                         <Calendar className="w-4 h-4" />
-                        <span>{order.appointmentDate.toLocaleDateString()} at {order.appointmentTime}</span>
+                        <span>{new Date(order.appointmentDate).toLocaleDateString()}{order.appointmentTime ? ` at ${order.appointmentTime}` : ''}</span>
                       </div>
+                      {order.meetLink && (
+                        <a href={order.meetLink} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-2 text-sm text-indigo-600 hover:underline">
+                          <Video className="w-4 h-4" />
+                          <span>Join Google Meet</span>
+                        </a>
+                      )}
                     </div>
                   )}
 
@@ -306,6 +258,7 @@ export default function OrdersBookings() {
         {/* Order Details Modal */}
         {showDetails && selectedOrder && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+            <ScrollLock />
             <div className="relative w-full max-w-3xl bg-white rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto">
               <button
                 onClick={() => setShowDetails(false)}
@@ -330,8 +283,6 @@ export default function OrdersBookings() {
                   <span className="font-semibold capitalize">{selectedOrder.status}</span>
                 </div>
               </div>
-
-              {/* Order Items */}
               <div className="mb-6 p-6 bg-gray-50 rounded-xl">
                 <h3 className="text-lg font-bold text-gray-800 mb-4">Order Items</h3>
                 <div className="space-y-3">
@@ -369,27 +320,51 @@ export default function OrdersBookings() {
                 </div>
               )}
 
+              {/* Delivery Address for medicine orders */}
+              {selectedOrder.type === 'medicine' && selectedOrder.deliveryAddress && (
+                <div className="mb-6 p-6 bg-green-50 border border-green-200 rounded-xl">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <MapPin className="w-5 h-5 text-green-600" />
+                    <h3 className="text-lg font-bold text-gray-800">Delivery Address</h3>
+                  </div>
+                  <p className="text-gray-700">{selectedOrder.deliveryAddress}</p>
+                  {selectedOrder.paymentMethod && (
+                    <p className="text-sm text-gray-500 mt-2">Payment: <span className="font-medium capitalize">{selectedOrder.paymentMethod}</span></p>
+                  )}
+                </div>
+              )}
+
               {/* Appointment Details */}
               {selectedOrder.type === 'consultation' && (
                 <div className="mb-6 p-6 bg-purple-50 border border-purple-200 rounded-xl">
                   <h3 className="text-lg font-bold text-gray-800 mb-4">Appointment Details</h3>
                   <div className="space-y-3">
-                    <div className="flex items-center space-x-3">
-                      <Stethoscope className="w-5 h-5 text-purple-600" />
-                      <div>
-                        <p className="text-sm text-gray-600">Doctor</p>
-                        <p className="font-semibold text-gray-800">{selectedOrder.doctorName}</p>
+                    {selectedOrder.doctorName && (
+                      <div className="flex items-center space-x-3">
+                        <Stethoscope className="w-5 h-5 text-purple-600" />
+                        <div>
+                          <p className="text-sm text-gray-600">Doctor</p>
+                          <p className="font-semibold text-gray-800">{selectedOrder.doctorName}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <Calendar className="w-5 h-5 text-purple-600" />
-                      <div>
-                        <p className="text-sm text-gray-600">Date & Time</p>
-                        <p className="font-semibold text-gray-800">
-                          {selectedOrder.appointmentDate?.toLocaleDateString()} at {selectedOrder.appointmentTime}
-                        </p>
+                    )}
+                    {selectedOrder.appointmentDate && (
+                      <div className="flex items-center space-x-3">
+                        <Calendar className="w-5 h-5 text-purple-600" />
+                        <div>
+                          <p className="text-sm text-gray-600">Date &amp; Time</p>
+                          <p className="font-semibold text-gray-800">
+                            {new Date(selectedOrder.appointmentDate).toLocaleDateString()}{selectedOrder.appointmentTime ? ` at ${selectedOrder.appointmentTime}` : ''}
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    )}
+                    {selectedOrder.meetLink && (
+                      <a href={selectedOrder.meetLink} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-3 text-indigo-600 hover:underline">
+                        <Video className="w-5 h-5" />
+                        <span className="font-semibold">Join Google Meet</span>
+                      </a>
+                    )}
                   </div>
                 </div>
               )}

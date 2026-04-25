@@ -1,19 +1,34 @@
 'use client'
 
 import { motion, useInView } from 'framer-motion'
-import { useRef } from 'react'
-import { 
-  NeuralNetworkBg, 
-  EKGWaveBg, 
-  NetworkMapBg, 
-  LockSecurityBg, 
-  AnalyticsChartBg, 
-  MobileAppBg 
+import { useRef, useEffect, useState } from 'react'
+import {
+  NeuralNetworkBg,
+  EKGWaveBg,
+  NetworkMapBg,
+  LockSecurityBg,
+  AnalyticsChartBg,
+  MobileAppBg
 } from '@/components/ui/FeatureBackgrounds'
 
 export default function FeaturesSection() {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: '-100px' })
+  const [stats, setStats] = useState({ doctors: 0, medicines: 0, labTests: 0 })
+
+  useEffect(() => {
+    fetch('/api/public/stats')
+      .then(r => r.json())
+      .then(d => setStats({
+        doctors: d.doctors ?? 0,
+        medicines: d.medicines ?? 0,
+        labTests: d.labTests ?? 0,
+      }))
+      .catch(() => {})
+  }, [])
+
+  const fmt = (n: number, fallback: string) =>
+    n > 0 ? (n >= 1000 ? `${Math.floor(n / 1000)}K+` : `${n}+`) : fallback
 
   const features = [
     {
@@ -23,7 +38,7 @@ export default function FeaturesSection() {
         </svg>
       ),
       title: 'AI Disease Prediction',
-      description: 'Advanced machine learning algorithms analyze your symptoms to predict potential diseases with high accuracy.',
+      description: 'Advanced machine learning algorithms analyze your symptoms to predict potential diseases with high accuracy across 669 disease classes.',
       background: <NeuralNetworkBg />,
     },
     {
@@ -33,7 +48,7 @@ export default function FeaturesSection() {
         </svg>
       ),
       title: 'Consult Doctors',
-      description: 'Connect with 500+ certified specialists through video, chat, or in-person appointments 24/7.',
+      description: `Connect with ${fmt(stats.doctors, 'certified')} specialists through video, chat, or in-person appointments 24/7.`,
       background: <NetworkMapBg />,
     },
     {
@@ -43,7 +58,7 @@ export default function FeaturesSection() {
         </svg>
       ),
       title: 'Pathology Tests',
-      description: 'Book 200+ lab tests online with free home sample collection and digital reports in 4-48 hours.',
+      description: `Book lab tests online with free home sample collection. ${fmt(stats.labTests, 'Multiple')} tests completed on our platform.`,
       background: <EKGWaveBg />,
     },
     {
@@ -53,7 +68,7 @@ export default function FeaturesSection() {
         </svg>
       ),
       title: 'Online Pharmacy',
-      description: '10,000+ genuine medicines with same-day delivery, cashless payment, and 25% off on first order.',
+      description: `${fmt(stats.medicines, 'Genuine')} medicines with same-day delivery, cashless payment, and verified products.`,
       background: <MobileAppBg />,
     },
     {
@@ -105,15 +120,17 @@ export default function FeaturesSection() {
               whileHover={{ y: -10, scale: 1.05 }}
               className="group relative backdrop-blur-xl bg-white/60 p-8 rounded-2xl shadow-lg hover:shadow-2xl hover:bg-white/80 transition-all duration-500 border border-sky-100 overflow-hidden"
             >
-              {/* Custom Background */}
               {feature.background}
-              
               <div className="relative z-10">
                 <div className="w-16 h-16 bg-gradient-to-br from-sky-400 to-sky-600 rounded-xl flex items-center justify-center text-white mb-6 group-hover:rotate-6 group-hover:scale-110 transition-all duration-500">
                   {feature.icon}
                 </div>
-                <h3 className="text-xl font-bold text-sky-900 mb-3 group-hover:text-sky-600 transition-colors duration-300">{feature.title}</h3>
-                <p className="text-gray-600 leading-relaxed group-hover:text-gray-800 transition-colors duration-300">{feature.description}</p>
+                <h3 className="text-xl font-bold text-sky-900 mb-3 group-hover:text-sky-600 transition-colors duration-300">
+                  {feature.title}
+                </h3>
+                <p className="text-gray-600 leading-relaxed group-hover:text-gray-800 transition-colors duration-300">
+                  {feature.description}
+                </p>
               </div>
             </motion.div>
           ))}

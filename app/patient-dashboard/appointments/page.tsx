@@ -17,6 +17,7 @@ interface Appointment {
   mode: 'Online' | 'Offline';
   status: 'Confirmed' | 'Pending' | 'Cancelled';
   reason: string;
+  initiatedBy: string;
   meetLink: string | null;
   calendarEventId: string | null;
   calendarEventLink: string | null;
@@ -122,6 +123,11 @@ export default function PatientAppointmentsPage() {
                       {apt.mode === 'Online' && (
                         <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
                           Online
+                        </span>
+                      )}
+                      {apt.initiatedBy === 'doctor' && (
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">
+                          Doctor-Scheduled
                         </span>
                       )}
                     </div>

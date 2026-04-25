@@ -12,39 +12,25 @@ import {
   Search, Star, Shield, Zap, HeartPulse,
   Microscope, TestTube, BarChart3, Download,
   CheckCircle, Users, Award, Phone, MapPin,
-  Droplets, Activity, Beaker, ShoppingCart, X, Plus, Minus
+  Droplets, Activity, Beaker, ShoppingCart, X, Plus, Minus, Loader2
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface Test {
-  id: number;
+  id: string;
   name: string;
   price: number;
-  originalPrice?: number;
-  time: string;
-  popular: boolean;
-  color: string;
+  original_price?: number;
+  turnaround_hours: number;
+  type: 'test' | 'package';
   description: string;
-  preparation?: string;
-  category: string;
-}
-
-interface Package {
-  id: number;
-  name: string;
-  tests: number;
-  price: number;
-  originalPrice?: number;
-  icon: JSX.Element;
-  color: string;
-  bg: string;
-  testList: string[];
-  description: string;
+  // UI-only fields assigned client-side
+  color?: string;
+  popular?: boolean;
 }
 
 interface CartItem extends Test {
   quantity: number;
-  type: 'test' | 'package';
 }
 
 interface BookingAddress {
@@ -79,73 +65,16 @@ interface Booking {
   bookingDate: Date;
   sampleCollectionDate: Date;
   status: 'pending' | 'confirmed' | 'collected' | 'completed';
+  queuePosition?: number;
+  estimatedTime?: string;
+  isWaitlisted?: boolean;
 }
 
-const TESTS: Test[] = [
-  { id: 1, name: 'Complete Blood Count (CBC)', price: 299, originalPrice: 399, time: '6 hrs', popular: true, color: '#2563eb', description: 'Measures different components of blood', preparation: 'No fasting required', category: 'Blood' },
-  { id: 2, name: 'Lipid Profile', price: 499, originalPrice: 699, time: '12 hrs', popular: false, color: '#0d9488', description: 'Cholesterol and triglycerides test', preparation: '12 hours fasting required', category: 'Blood' },
-  { id: 3, name: 'Liver Function Test', price: 599, time: '24 hrs', popular: false, color: '#7c3aed', description: 'Evaluates liver health', preparation: '8 hours fasting recommended', category: 'Blood' },
-  { id: 4, name: 'Kidney Function Test', price: 549, time: '24 hrs', popular: false, color: '#db2777', description: 'Assesses kidney performance', preparation: 'No special preparation', category: 'Blood' },
-  { id: 5, name: 'Thyroid Profile (T3/T4/TSH)', price: 799, originalPrice: 999, time: '24 hrs', popular: true, color: '#ea580c', description: 'Complete thyroid function assessment', preparation: 'Morning sample preferred', category: 'Hormone' },
-  { id: 6, name: 'Diabetes Screening (HbA1c)', price: 449, time: '6 hrs', popular: false, color: '#16a34a', description: '3-month average blood sugar', preparation: 'No fasting required', category: 'Blood' },
-  { id: 7, name: 'Vitamin D & B12 Panel', price: 899, originalPrice: 1199, time: '48 hrs', popular: true, color: '#ca8a04', description: 'Essential vitamin levels', preparation: 'No special preparation', category: 'Vitamin' },
-  { id: 8, name: 'COVID-19 RT-PCR', price: 699, time: '8 hrs', popular: false, color: '#dc2626', description: 'COVID-19 detection test', preparation: 'No eating 1 hour before', category: 'Infection' },
-  { id: 9, name: 'Iron Studies', price: 349, time: '12 hrs', popular: false, color: '#0891b2', description: 'Iron levels and storage', preparation: 'Morning sample preferred', category: 'Blood' },
-  { id: 10, name: 'Urine Routine Analysis', price: 199, time: '4 hrs', popular: false, color: '#7c3aed', description: 'Complete urine examination', preparation: 'First morning sample', category: 'Urine' },
-  { id: 11, name: 'Calcium & Phosphorus', price: 399, time: '12 hrs', popular: false, color: '#059669', description: 'Bone health markers', preparation: 'No special preparation', category: 'Blood' },
-  { id: 12, name: 'Full Body Health Checkup', price: 1999, originalPrice: 2999, time: '48 hrs', popular: true, color: '#1a4fba', description: 'Comprehensive health screening', preparation: '12 hours fasting required', category: 'Package' },
-];
-
-const PACKAGES: Package[] = [
-  { 
-    id: 101, 
-    name: 'Basic Wellness', 
-    tests: 8, 
-    price: 799, 
-    originalPrice: 1299,
-    icon: <HeartPulse size={22} />, 
-    color: '#2563eb', 
-    bg: '#eff6ff',
-    testList: ['CBC', 'Blood Sugar', 'Lipid Profile', 'Liver Function', 'Kidney Function', 'Thyroid', 'Vitamin D', 'Urine Analysis'],
-    description: 'Essential health screening package'
-  },
-  { 
-    id: 102, 
-    name: 'Advanced Health', 
-    tests: 18, 
-    price: 1499, 
-    originalPrice: 2499,
-    icon: <Activity size={22} />, 
-    color: '#0d9488', 
-    bg: '#f0fdfa',
-    testList: ['All Basic Tests', 'HbA1c', 'Iron Studies', 'Calcium', 'Vitamin B12', 'ECG', 'Chest X-Ray', 'More...'],
-    description: 'Comprehensive health assessment'
-  },
-  { 
-    id: 103, 
-    name: 'Complete Body', 
-    tests: 32, 
-    price: 2999, 
-    originalPrice: 4999,
-    icon: <Microscope size={22} />, 
-    color: '#7c3aed', 
-    bg: '#f5f3ff',
-    testList: ['All Advanced Tests', 'Cardiac Markers', 'Tumor Markers', 'Hormone Panel', 'Allergy Tests', 'More...'],
-    description: 'Full body diagnostic package'
-  },
-  { 
-    id: 104, 
-    name: 'Diabetes Care', 
-    tests: 12, 
-    price: 999, 
-    originalPrice: 1599,
-    icon: <Droplets size={22} />, 
-    color: '#db2777', 
-    bg: '#fdf2f8',
-    testList: ['HbA1c', 'Fasting Sugar', 'PP Sugar', 'Lipid Profile', 'Kidney Function', 'Liver Function', 'More...'],
-    description: 'Diabetes monitoring package'
-  },
-];
+// Color palette for tests (assigned by index)
+const TEST_COLORS = ['#2563eb', '#0d9488', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#ca8a04', '#dc2626', '#0891b2', '#7c3aed', '#059669', '#1a4fba'];
+const PACKAGE_COLORS = ['#2563eb', '#0d9488', '#7c3aed', '#db2777'];
+const PACKAGE_BG = ['#eff6ff', '#f0fdfa', '#f5f3ff', '#fdf2f8'];
+const PACKAGE_ICONS = [<HeartPulse key="hp" size={22} />, <Activity key="ac" size={22} />, <Microscope key="mi" size={22} />, <Droplets key="dr" size={22} />];
 
 export default function PathologyPage() {
   const router = useRouter();
@@ -154,6 +83,11 @@ export default function PathologyPage() {
   const [activeTab, setActiveTab] = useState('all');
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const heroRef = useRef<HTMLDivElement>(null);
+
+  // Dynamic data from API
+  const [tests, setTests] = useState<Test[]>([]);
+  const [packages, setPackages] = useState<Test[]>([]);
+  const [loadingTests, setLoadingTests] = useState(true);
   
   // Cart and Booking States
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -184,6 +118,27 @@ export default function PathologyPage() {
   const [promoCode, setPromoCode] = useState('');
   const [discount, setDiscount] = useState(0);
 
+  // Fetch tests and packages from API
+  useEffect(() => {
+    fetch('/api/public/lab-tests')
+      .then(r => r.json())
+      .then(d => {
+        const coloredTests = (d.tests ?? []).map((t: Test, i: number) => ({
+          ...t,
+          color: TEST_COLORS[i % TEST_COLORS.length],
+          popular: i < 4, // mark first 4 as popular
+        }));
+        const coloredPackages = (d.packages ?? []).map((p: Test, i: number) => ({
+          ...p,
+          color: PACKAGE_COLORS[i % PACKAGE_COLORS.length],
+        }));
+        setTests(coloredTests);
+        setPackages(coloredPackages);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingTests(false));
+  }, []);
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (heroRef.current) {
@@ -201,7 +156,7 @@ export default function PathologyPage() {
     }
   }, [showDashboard]);
 
-  const filtered = TESTS.filter(t =>
+  const filtered = tests.filter(t =>
     t.name.toLowerCase().includes(search.toLowerCase()) &&
     (activeTab === 'all' || (activeTab === 'popular' && t.popular))
   );
@@ -211,12 +166,11 @@ export default function PathologyPage() {
   const collectionFee = 0; // Free home collection
   const finalTotal = cartTotal + collectionFee - discount;
 
-  const addToCart = (item: Test | Package, type: 'test' | 'package') => {
+  const addToCart = (item: Test, type: 'test' | 'package') => {
     const cartItem: CartItem = {
       ...item,
       quantity: 1,
       type,
-      time: 'time' in item ? item.time : '48 hrs'
     };
     
     setCart(prev => {
@@ -230,11 +184,11 @@ export default function PathologyPage() {
     });
   };
 
-  const removeFromCart = (id: number, type: 'test' | 'package') => {
+  const removeFromCart = (id: string, type: 'test' | 'package') => {
     setCart(prev => prev.filter(item => !(item.id === id && item.type === type)));
   };
 
-  const updateQuantity = (id: number, type: 'test' | 'package', delta: number) => {
+  const updateQuantity = (id: string, type: 'test' | 'package', delta: number) => {
     setCart(prev => prev.map(item => {
       if (item.id === id && item.type === type) {
         const newQuantity = item.quantity + delta;
@@ -476,26 +430,43 @@ export default function PathologyPage() {
         {/* Health Packages */}
         <div className="mb-12">
           <h2 className="text-3xl font-bold text-gray-800 mb-6">Health Packages</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {PACKAGES.map((p, i) => (
-              <div key={i} className="rounded-2xl p-6 hover:shadow-lg transition-shadow cursor-pointer" style={{ background: p.bg, border: `2px solid ${p.color}22` }}>
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: `${p.color}22`, color: p.color }}>
-                  {p.icon}
-                </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">{p.name}</h3>
-                <p className="text-sm text-gray-600 mb-4">{p.tests} tests included</p>
-                <div className="text-2xl font-bold mb-4" style={{ color: p.color }}>{p.price}</div>
-                <button 
-                  type="button"
-                  onClick={() => addToCart(p, 'package')}
-                  className="w-full px-4 py-2 text-white rounded-lg hover:opacity-90 transition-opacity"
-                  style={{ background: p.color }}
-                >
-                  Add to Cart
-                </button>
-              </div>
-            ))}
-          </div>
+          {loadingTests ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {packages.map((p, i) => {
+                const color = PACKAGE_COLORS[i % PACKAGE_COLORS.length];
+                const bg = PACKAGE_BG[i % PACKAGE_BG.length];
+                const icon = PACKAGE_ICONS[i % PACKAGE_ICONS.length];
+                return (
+                  <div key={p.id} className="rounded-2xl p-6 hover:shadow-lg transition-shadow cursor-pointer" style={{ background: bg, border: `2px solid ${color}22` }}>
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: `${color}22`, color }}>
+                      {icon}
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">{p.name}</h3>
+                    <p className="text-sm text-gray-600 mb-4">{p.description}</p>
+                    <div className="text-2xl font-bold mb-1" style={{ color }}>₹{p.price}</div>
+                    {p.original_price && (
+                      <div className="text-sm text-gray-400 line-through mb-3">₹{p.original_price}</div>
+                    )}
+                    <div className="text-xs text-gray-500 mb-4">
+                      <Clock size={12} className="inline mr-1" />{p.turnaround_hours} hrs turnaround
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => addToCart(p, 'package')}
+                      className="w-full px-4 py-2 text-white rounded-lg hover:opacity-90 transition-opacity"
+                      style={{ background: color }}
+                    >
+                      Add to Cart
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Available Tests */}
@@ -534,8 +505,12 @@ export default function PathologyPage() {
 
           {/* Test List */}
           <div className="bg-white rounded-2xl overflow-hidden border border-gray-200">
-            {filtered.length === 0 ? (
-              <div className="text-center py-12 text-gray-400">No tests found for "{search}"</div>
+            {loadingTests ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-12 text-gray-400">No tests found{search ? ` for "${search}"` : ''}</div>
             ) : filtered.map((t, i) => (
               <div 
                 key={i} 
@@ -557,11 +532,14 @@ export default function PathologyPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-2 mt-1 text-sm text-gray-500">
-                    <Clock size={12} /> {t.time}
+                    <Clock size={12} /> {t.turnaround_hours} hrs
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-lg font-bold" style={{ color: t.color }}>{t.price}</div>
+                  <div className="text-lg font-bold" style={{ color: t.color }}>₹{t.price}</div>
+                  {t.original_price && (
+                    <div className="text-xs text-gray-400 line-through">₹{t.original_price}</div>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -654,7 +632,7 @@ export default function PathologyPage() {
                     </div>
                     <div className="flex-1">
                       <h4 className="font-semibold text-gray-800 text-sm">{item.name}</h4>
-                      <p className="text-xs text-gray-500">{item.time} turnaround</p>
+                      <p className="text-xs text-gray-500">{item.turnaround_hours} hrs turnaround</p>
                       <p className="text-lg font-bold text-gray-800 mt-1">₹{item.price}</p>
                     </div>
                     <div className="flex flex-col items-end space-y-2">
@@ -759,7 +737,7 @@ export default function PathologyPage() {
       {/* Booking Status Tracker */}
       {showBookingStatus && currentBooking && (
         <BookingStatusTracker
-          booking={currentBooking}
+          booking={currentBooking as any}
           onClose={() => setShowBookingStatus(false)}
         />
       )}

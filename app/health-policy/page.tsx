@@ -4,13 +4,32 @@ import { useState, useRef, useEffect } from 'react';
 import PatientNavbar from '@/components/patient/PatientNavbar';
 import NeuralNetworkContainer from '@/components/ui/NeuralNetworkContainer';
 import Footer from '@/components/patient/Footer';
-import { Shield, FileText, Heart, Users, Lock, CheckCircle, ArrowLeft, Award, Clock, Phone } from 'lucide-react';
+import { Shield, FileText, Heart, Users, Lock, CheckCircle, ArrowLeft, Award, Clock, Phone, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+
+interface InsurancePlan {
+  id: string;
+  name: string;
+  price_per_year: number;
+  coverage_amount: number;
+  is_popular: boolean;
+  features: string[];
+}
 
 export default function HealthPolicyPage() {
   const router = useRouter();
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const heroRef = useRef<HTMLDivElement>(null);
+  const [plans, setPlans] = useState<InsurancePlan[]>([]);
+  const [loadingPlans, setLoadingPlans] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/public/insurance-plans')
+      .then(r => r.json())
+      .then(d => setPlans(d.plans ?? []))
+      .catch(() => {})
+      .finally(() => setLoadingPlans(false));
+  }, []);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -185,97 +204,63 @@ export default function HealthPolicyPage() {
         {/* Policy Plans */}
         <div className="mb-12">
           <h2 className="text-3xl font-bold text-gray-800 mb-8 text-center">Choose Your Plan</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            {[
-              {
-                name: 'Basic Plan',
-                price: '₹5,000',
-                period: '/year',
-                coverage: '₹3 Lakhs',
-                features: [
-                  'Hospitalization coverage',
-                  'Pre & post hospitalization',
-                  'Daycare procedures',
-                  'Ambulance charges',
-                  'Annual health checkup'
-                ],
-                color: 'blue',
-                popular: false
-              },
-              {
-                name: 'Premium Plan',
-                price: '₹12,000',
-                period: '/year',
-                coverage: '₹10 Lakhs',
-                features: [
-                  'All Basic Plan benefits',
-                  'Maternity coverage',
-                  'Critical illness cover',
-                  'No room rent limit',
-                  'International coverage',
-                  'Wellness programs'
-                ],
-                color: 'emerald',
-                popular: true
-              },
-              {
-                name: 'Family Plan',
-                price: '₹18,000',
-                period: '/year',
-                coverage: '₹15 Lakhs',
-                features: [
-                  'All Premium Plan benefits',
-                  'Covers 4 family members',
-                  'Newborn baby coverage',
-                  'Restoration benefit',
-                  'Home healthcare',
-                  'Mental health coverage'
-                ],
-                color: 'teal',
-                popular: false
-              }
-            ].map((plan, i) => (
-              <div 
-                key={i} 
-                className={`relative bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 ${
-                  plan.popular ? 'border-2 border-emerald-500 transform scale-105' : 'border border-gray-200'
-                }`}
-              >
-                {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-bold rounded-full">
-                    Most Popular
+          {loadingPlans ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-3 gap-6">
+              {plans.map((plan, i) => {
+                const colorMap = ['blue', 'emerald', 'teal'];
+                const color = colorMap[i % colorMap.length];
+                return (
+                  <div 
+                    key={plan.id} 
+                    className={`relative bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 ${
+                      plan.is_popular ? 'border-2 border-emerald-500 transform scale-105' : 'border border-gray-200'
+                    }`}
+                  >
+                    {plan.is_popular && (
+                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-bold rounded-full">
+                        Most Popular
+                      </div>
+                    )}
+                    <h3 className="text-2xl font-bold text-gray-800 mb-2">{plan.name}</h3>
+                    <div className="mb-4">
+                      <span className="text-4xl font-bold text-gray-800">
+                        ₹{plan.price_per_year.toLocaleString('en-IN')}
+                      </span>
+                      <span className="text-gray-600">/year</span>
+                    </div>
+                    <div className="mb-6 pb-6 border-b border-gray-200">
+                      <span className="text-sm text-gray-600">Coverage up to</span>
+                      <div className="text-2xl font-bold text-emerald-600">
+                        ₹{(plan.coverage_amount / 100000).toFixed(0)} Lakhs
+                      </div>
+                    </div>
+                    <ul className="space-y-3 mb-8">
+                      {(plan.features ?? []).map((feature, j) => (
+                        <li key={j} className="flex items-start gap-2">
+                          <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                          <span className="text-gray-700 text-sm">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <button 
+                      type="button"
+                      className={`w-full py-3 rounded-xl font-semibold transition-all duration-300 ${
+                        plan.is_popular
+                          ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:shadow-lg'
+                          : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                      }`}
+                    >
+                      Get Started
+                    </button>
                   </div>
-                )}
-                <h3 className="text-2xl font-bold text-gray-800 mb-2">{plan.name}</h3>
-                <div className="mb-4">
-                  <span className="text-4xl font-bold text-gray-800">{plan.price}</span>
-                  <span className="text-gray-600">{plan.period}</span>
-                </div>
-                <div className="mb-6 pb-6 border-b border-gray-200">
-                  <span className="text-sm text-gray-600">Coverage up to</span>
-                  <div className="text-2xl font-bold text-emerald-600">{plan.coverage}</div>
-                </div>
-                <ul className="space-y-3 mb-8">
-                  {plan.features.map((feature, j) => (
-                    <li key={j} className="flex items-start gap-2">
-                      <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-gray-700 text-sm">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <button 
-                  type="button"
-                  className={`w-full py-3 rounded-xl font-semibold transition-all duration-300 ${
-                    plan.popular
-                      ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:shadow-lg'
-                      : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                  }`}
-                >
-                  Get Started
-                </button>
-              </div>
-            ))}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Coverage Details */}

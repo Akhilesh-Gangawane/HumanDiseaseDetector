@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/authOptions'
 import { supabaseServer } from '@/lib/supabaseServer'
 
 async function getDoctorId(email: string) {
@@ -39,7 +39,7 @@ export async function GET() {
   return NextResponse.json({ notifications })
 }
 
-// POST /api/doctor/notifications — create notification
+// POST /api/doctor/notifications â€” create notification
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ id: data.id })
 }
 
-// PATCH /api/doctor/notifications — mark read / mark all read / delete
+// PATCH /api/doctor/notifications â€” mark read / mark all read / delete
 export async function PATCH(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

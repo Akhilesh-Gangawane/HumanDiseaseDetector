@@ -1,19 +1,43 @@
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { useState, lazy, Suspense } from 'react'
+import { useState, lazy, Suspense, useEffect, useRef } from 'react'
 import Swal from 'sweetalert2'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { Mail, Lock, User, Eye, EyeOff, ArrowLeft, Stethoscope, UserCircle } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Mail, Lock, User, Eye, EyeOff, ArrowLeft, Stethoscope, UserCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react'
 import { signIn } from 'next-auth/react'
 
 const DoctorModel3D = lazy(() => import('@/components/DoctorModel3D'))
 const PatientModel3D = lazy(() => import('@/components/PatientModel3D'))
 
+const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+  OAuthCallback:      'Google sign-in failed. Please check that your Google account is authorized and try again.',
+  OAuthSignin:        'Could not start Google sign-in. Please try again.',
+  OAuthCreateAccount: 'Could not create an account with Google. Please try again.',
+  Callback:           'Sign-in callback failed. Please try again.',
+  AccessDenied:       'Access was denied. Please grant the required permissions.',
+  Configuration:      'Server configuration error. Please contact support.',
+  Default:            'An unexpected error occurred. Please try again.',
+}
+
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Show error toast if NextAuth redirected back with an error param
+  useEffect(() => {
+    const error = searchParams.get('error')
+    if (!error) return
+    const message = OAUTH_ERROR_MESSAGES[error] ?? OAUTH_ERROR_MESSAGES.Default
+    Swal.fire({ icon: 'error', title: 'Sign-in Failed', text: message, confirmButtonColor: '#3b82f6' })
+    // Clean the error param from the URL without a full reload
+    const url = new URL(window.location.href)
+    url.searchParams.delete('error')
+    url.searchParams.delete('callbackUrl')
+    window.history.replaceState({}, '', url.toString())
+  }, [searchParams])
   const [activeTab, setActiveTab] = useState<'signin' | 'signup'>('signin')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -27,12 +51,161 @@ export default function LoginPage() {
     confirmPassword: '',
   })
 
+  // Doctor verification fields (only relevant during doctor sign-up)
+  const [doctorData, setDoctorData] = useState({
+    medicalCouncil: '',
+    registrationNumber: '',
+    registrationYear: '',
+  })
+  const [regNumError, setRegNumError] = useState('')
+
+  // Indian state medical councils
+  const MEDICAL_COUNCILS = [
+    'Andhra Pradesh Medical Council',
+    'Assam Medical Council',
+    'Bihar Medical Council',
+    'Chhattisgarh Medical Council',
+    'Delhi Medical Council',
+    'Goa Medical Council',
+    'Gujarat Medical Council',
+    'Haryana Medical Council',
+    'Himachal Pradesh Medical Council',
+    'Jammu & Kashmir Medical Council',
+    'Jharkhand Medical Council',
+    'Karnataka Medical Council',
+    'Kerala Medical Council',
+    'Madhya Pradesh Medical Council',
+    'Maharashtra Medical Council',
+    'Manipur Medical Council',
+    'Meghalaya Medical Council',
+    'Mizoram Medical Council',
+    'Nagaland Medical Council',
+    'Odisha Medical Council',
+    'Punjab Medical Council',
+    'Rajasthan Medical Council',
+    'Sikkim Medical Council',
+    'Tamil Nadu Medical Council',
+    'Telangana State Medical Council',
+    'Tripura Medical Council',
+    'Uttar Pradesh Medical Council',
+    'Uttarakhand Medical Council',
+    'West Bengal Medical Council',
+    'Medical Council of India (MCI/NMC)',
+  ]
+
+  // Validate registration number format: letters/digits, optional hyphen, 4-8 digits
+  // e.g. MMC-123456, DL-67890, KMC12345
+  const REG_NUM_REGEX = /^[A-Z]{2,6}-?\d{4,8}$/i
+
+  const validateRegNumber = (val: string) => {
+    if (!val) { setRegNumError(''); return true }
+    if (!REG_NUM_REGEX.test(val.trim())) {
+      setRegNumError('Format should be like MMC-123456 or DL67890 (council prefix + digits).')
+      return false
+    }
+    setRegNumError('')
+    return true
+  }
+
+  const handleDoctorDataChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target
+    setDoctorData(prev => ({ ...prev, [name]: value }))
+    if (name === 'registrationNumber') validateRegNumber(value)
+  }
+
+  // Email validation state
+  type EmailStatus = 'idle' | 'checking' | 'valid' | 'invalid'
+  const [emailStatus, setEmailStatus] = useState<EmailStatus>('idle')
+  const [emailError, setEmailError] = useState('')
+  const emailDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Basic format check (client-side, instant)
+  const EMAIL_REGEX = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/
+
+  const validateEmailAsync = async (email: string) => {
+    if (!email) { setEmailStatus('idle'); setEmailError(''); return }
+    if (!EMAIL_REGEX.test(email)) {
+      setEmailStatus('invalid')
+      setEmailError('Please enter a valid email address.')
+      return
+    }
+    setEmailStatus('checking')
+    setEmailError('')
+    try {
+      const res = await fetch('/api/auth/validate-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json()
+      if (data.valid) {
+        setEmailStatus('valid')
+        setEmailError('')
+      } else {
+        setEmailStatus('invalid')
+        setEmailError(data.reason ?? 'This email address does not appear to be valid.')
+      }
+    } catch {
+      // Network error — don't block the user, just reset
+      setEmailStatus('idle')
+      setEmailError('')
+    }
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+
+    if (name === 'email') {
+      // Debounce the async check by 600ms so we don't fire on every keystroke
+      if (emailDebounceRef.current) clearTimeout(emailDebounceRef.current)
+      setEmailStatus('idle')
+      setEmailError('')
+      emailDebounceRef.current = setTimeout(() => {
+        validateEmailAsync(value.trim().toLowerCase())
+      }, 600)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Block submit if email is known-invalid
+    if (emailStatus === 'invalid') {
+      Swal.fire({ icon: 'error', title: 'Invalid Email', text: emailError || 'Please enter a valid email address.', confirmButtonColor: '#3b82f6' })
+      return
+    }
+
+    // If still checking, wait for it to finish
+    if (emailStatus === 'checking') {
+      Swal.fire({ icon: 'info', title: 'Validating Email', text: 'Please wait a moment while we verify your email.', confirmButtonColor: '#3b82f6' })
+      return
+    }
 
     if (activeTab === 'signup' && formData.password !== formData.confirmPassword) {
       Swal.fire({ icon: 'error', title: 'Password Mismatch', text: 'Passwords do not match.', confirmButtonColor: '#3b82f6' })
       return
+    }
+
+    // Doctor sign-up: require registration details
+    if (activeTab === 'signup' && userRole === 'doctor') {
+      if (!doctorData.medicalCouncil) {
+        Swal.fire({ icon: 'error', title: 'Missing Information', text: 'Please select your State Medical Council.', confirmButtonColor: '#3b82f6' })
+        return
+      }
+      if (!doctorData.registrationNumber) {
+        Swal.fire({ icon: 'error', title: 'Missing Information', text: 'Please enter your Medical Registration Number.', confirmButtonColor: '#3b82f6' })
+        return
+      }
+      if (!validateRegNumber(doctorData.registrationNumber)) {
+        Swal.fire({ icon: 'error', title: 'Invalid Registration Number', text: regNumError, confirmButtonColor: '#3b82f6' })
+        return
+      }
+      const year = parseInt(doctorData.registrationYear)
+      if (doctorData.registrationYear && (isNaN(year) || year < 1950 || year > new Date().getFullYear())) {
+        Swal.fire({ icon: 'error', title: 'Invalid Year', text: 'Please enter a valid registration year.', confirmButtonColor: '#3b82f6' })
+        return
+      }
     }
 
     setLoading(true)
@@ -43,6 +216,10 @@ export default function LoginPage() {
       name: formData.name,
       role: userRole,
       isSignUp: activeTab === 'signup' ? 'true' : 'false',
+      // Doctor verification fields (ignored for patients / sign-in)
+      medicalCouncil:     doctorData.medicalCouncil,
+      registrationNumber: doctorData.registrationNumber,
+      registrationYear:   doctorData.registrationYear,
     })
     setLoading(false)
 
@@ -51,12 +228,22 @@ export default function LoginPage() {
       return
     }
 
+    // Show pending verification notice for new doctor accounts
+    if (activeTab === 'signup' && userRole === 'doctor') {
+      await Swal.fire({
+        icon: 'info',
+        title: 'Account Created — Verification Pending',
+        html: `Your account has been created.<br/><br/>
+               Your medical registration details have been submitted for verification.
+               You can use the platform while verification is in progress.
+               A badge will appear on your profile once verified.`,
+        confirmButtonColor: '#3b82f6',
+        confirmButtonText: 'Go to Dashboard',
+      })
+    }
+
     // Redirect based on selected role
     router.push(userRole === 'doctor' ? '/dashboard' : '/patient-dashboard')
-  }
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
   return (
@@ -337,10 +524,40 @@ export default function LoginPage() {
                         value={formData.email}
                         onChange={handleChange}
                         required
-                        className="w-full pl-12 pr-4 py-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white/50 backdrop-blur-sm"
+                        className={`w-full pl-12 pr-10 py-3.5 border rounded-xl focus:outline-none focus:ring-2 focus:border-transparent transition-all bg-white/50 backdrop-blur-sm ${
+                          emailStatus === 'invalid'
+                            ? 'border-red-400 focus:ring-red-400'
+                            : emailStatus === 'valid'
+                            ? 'border-green-400 focus:ring-green-400'
+                            : 'border-gray-200 focus:ring-blue-500'
+                        }`}
                         placeholder="username@gmail.com"
                       />
+                      {/* Email status icon */}
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                        {emailStatus === 'checking' && (
+                          <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
+                        )}
+                        {emailStatus === 'valid' && (
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                        )}
+                        {emailStatus === 'invalid' && (
+                          <XCircle className="w-4 h-4 text-red-500" />
+                        )}
+                      </div>
                     </div>
+                    {emailStatus === 'invalid' && emailError && (
+                      <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1">
+                        <XCircle className="w-3 h-3 shrink-0" />
+                        {emailError}
+                      </p>
+                    )}
+                    {emailStatus === 'valid' && (
+                      <p className="mt-1.5 text-xs text-green-600 flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3 shrink-0" />
+                        Email address looks good
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -393,6 +610,98 @@ export default function LoginPage() {
                         </button>
                       </div>
                     </div>
+                  )}
+
+                  {/* Doctor Verification Fields — only shown during doctor sign-up */}
+                  {activeTab === 'signup' && userRole === 'doctor' && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="space-y-4 border border-teal-200 bg-teal-50/60 rounded-xl p-4"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Stethoscope className="w-4 h-4 text-teal-600" />
+                        <p className="text-sm font-bold text-teal-700">Medical Registration Details</p>
+                      </div>
+                      <p className="text-xs text-teal-600 -mt-2">
+                        Required for verification. Your account will be marked as pending until reviewed.
+                      </p>
+
+                      {/* State Medical Council */}
+                      <div>
+                        <label htmlFor="doctor-council" className="block text-sm font-semibold text-gray-700 mb-2">
+                          State Medical Council <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          id="doctor-council"
+                          name="medicalCouncil"
+                          value={doctorData.medicalCouncil}
+                          onChange={handleDoctorDataChange}
+                          required={activeTab === 'signup' && userRole === 'doctor'}
+                          className="w-full px-4 py-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all bg-white/80 text-gray-700 text-sm"
+                        >
+                          <option value="">Select your council...</option>
+                          {MEDICAL_COUNCILS.map(c => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Registration Number */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Registration Number <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="registrationNumber"
+                          value={doctorData.registrationNumber}
+                          onChange={handleDoctorDataChange}
+                          required={activeTab === 'signup' && userRole === 'doctor'}
+                          placeholder="e.g. MMC-123456 or DL67890"
+                          className={`w-full px-4 py-3.5 border rounded-xl focus:outline-none focus:ring-2 focus:border-transparent transition-all bg-white/80 text-sm ${
+                            regNumError ? 'border-red-400 focus:ring-red-400' : 'border-gray-200 focus:ring-teal-500'
+                          }`}
+                        />
+                        {regNumError && (
+                          <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1">
+                            <XCircle className="w-3 h-3 shrink-0" />
+                            {regNumError}
+                          </p>
+                        )}
+                        <p className="mt-1 text-xs text-gray-500">
+                          Format: council prefix + number (e.g. MMC-123456, KMC-78901)
+                        </p>
+                      </div>
+
+                      {/* Registration Year */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Year of Registration
+                        </label>
+                        <input
+                          type="number"
+                          name="registrationYear"
+                          value={doctorData.registrationYear}
+                          onChange={handleDoctorDataChange}
+                          placeholder="e.g. 2015"
+                          min="1950"
+                          max={new Date().getFullYear()}
+                          className="w-full px-4 py-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all bg-white/80 text-sm"
+                        />
+                      </div>
+
+                      <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                        <svg className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        <p className="text-xs text-amber-700">
+                          Your registration details will be manually verified by our team. Providing false information may result in account suspension.
+                        </p>
+                      </div>
+                    </motion.div>
                   )}
 
                   {activeTab === 'signin' && (
