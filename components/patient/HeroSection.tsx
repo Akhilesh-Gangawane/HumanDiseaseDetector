@@ -1,15 +1,41 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowRight, Stethoscope, Brain, Activity, X } from 'lucide-react';
 import { PulsePattern } from '@/components/ui/BackgroundPatterns';
 import { useRouter } from 'next/navigation';
 import HeroScroll from './HeroScroll';
 import PredictionForm from './PredictionForm';
 
+interface PlatformStats {
+  accuracy: string;
+  predictions: string;
+  support: string;
+}
+
 export default function HeroSection() {
   const router = useRouter();
   const [showPrediction, setShowPrediction] = useState(false);
+  const [platformStats, setPlatformStats] = useState<PlatformStats>({
+    accuracy: '98%',
+    predictions: '50K+',
+    support: '24/7',
+  });
+
+  useEffect(() => {
+    fetch('/api/public/stats')
+      .then(r => r.json())
+      .then(d => {
+        if (d.predictions !== undefined) {
+          const count = d.predictions as number;
+          const formatted = count >= 1000
+            ? `${(count / 1000).toFixed(0)}K+`
+            : `${count}+`;
+          setPlatformStats(prev => ({ ...prev, predictions: formatted }));
+        }
+      })
+      .catch(() => {});
+  }, []);
   return (
     <section className="relative min-h-screen pt-16 bg-gradient-to-br from-blue-50 via-teal-50 to-blue-100 overflow-hidden">
       {/* Background decorative elements */}
@@ -64,15 +90,15 @@ export default function HeroSection() {
             {/* Stats */}
             <div className="grid grid-cols-3 gap-6 pt-8">
               <div className="text-center bg-white p-4 rounded-2xl hover:shadow-lg hover:scale-105 transition-all duration-300 border border-gray-200">
-                <div className="text-3xl font-bold text-blue-600">98%</div>
+                <div className="text-3xl font-bold text-blue-600">{platformStats.accuracy}</div>
                 <div className="text-sm text-gray-600">Accuracy</div>
               </div>
               <div className="text-center bg-white p-4 rounded-2xl hover:shadow-lg hover:scale-105 transition-all duration-300 border border-gray-200">
-                <div className="text-3xl font-bold text-teal-600">50K+</div>
+                <div className="text-3xl font-bold text-teal-600">{platformStats.predictions}</div>
                 <div className="text-sm text-gray-600">Predictions</div>
               </div>
               <div className="text-center bg-white p-4 rounded-2xl hover:shadow-lg hover:scale-105 transition-all duration-300 border border-gray-200">
-                <div className="text-3xl font-bold text-blue-600">24/7</div>
+                <div className="text-3xl font-bold text-blue-600">{platformStats.support}</div>
                 <div className="text-sm text-gray-600">Support</div>
               </div>
             </div>

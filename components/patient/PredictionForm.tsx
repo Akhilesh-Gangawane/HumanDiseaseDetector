@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Loader2, AlertCircle, CheckCircle2, X, Brain, Activity } from 'lucide-react';
 import { SYMPTOMS, type Symptom } from '@/lib/symptomList';
 import SymptomSelector from '@/components/ui/SymptomSelector';
+import { ScrollLock } from '@/hooks/useScrollLock';
 
 interface PredictionResult {
   prediction: string;
@@ -82,6 +83,7 @@ export default function PredictionForm({ onClose }: PredictionFormProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <ScrollLock />
       <div className="relative w-full max-w-2xl max-h-[90vh] bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
         {/* Close */}
         {onClose && (

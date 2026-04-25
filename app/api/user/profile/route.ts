@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/authOptions'
 import { supabaseServer } from '@/lib/supabaseServer'
 
-// GET /api/user/profile — fetch the logged-in user's profile (users + patients or doctors)
+// GET /api/user/profile â€” fetch the logged-in user's profile (users + patients or doctors)
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) {
@@ -43,7 +43,7 @@ export async function GET() {
   return NextResponse.json({ user: userRow })
 }
 
-// PUT /api/user/profile — update the logged-in user's profile
+// PUT /api/user/profile â€” update the logged-in user's profile
 export async function PUT(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) {
@@ -105,13 +105,23 @@ export async function PUT(req: NextRequest) {
       ? d.certifications.split(',').map((s: string) => s.trim()).filter(Boolean)
       : []
 
-    await supabaseServer.from('doctors').upsert({
-      user_id: userRow.id,
-      specialization: d.specialization ?? null,
-      license_number: d.license_number ?? null,
+    // Build the upsert payload â€” only include verification_status if explicitly passed
+    const doctorPayload: Record<string, unknown> = {
+      user_id:          userRow.id,
+      specialization:   d.specialization   ?? null,
+      license_number:   d.license_number   ?? null,
       experience_years: d.experience_years ?? null,
-      qualifications: qualifications.length ? qualifications : null,
-    }, { onConflict: 'user_id' })
+      qualifications:   qualifications.length ? qualifications : null,
+      medical_council:  d.medical_council  ?? null,
+      registration_year: d.registration_year ?? null,
+    }
+
+    // Only allow bumping to 'pending' from 'unverified' â€” never downgrade a verified doctor
+    if (d.verification_status === 'pending') {
+      doctorPayload.verification_status = 'pending'
+    }
+
+    await supabaseServer.from('doctors').upsert(doctorPayload, { onConflict: 'user_id' })
   }
 
   return NextResponse.json({ success: true })

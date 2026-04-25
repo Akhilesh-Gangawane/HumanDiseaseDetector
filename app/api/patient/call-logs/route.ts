@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/authOptions'
 import { supabaseServer } from '@/lib/supabaseServer'
 
 async function getPatientRow(email: string) {
@@ -10,7 +10,7 @@ async function getPatientRow(email: string) {
   return data
 }
 
-// POST /api/patient/call-logs — save a voice assistant call log and notify doctors
+// POST /api/patient/call-logs â€” save a voice assistant call log and notify doctors
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -49,10 +49,10 @@ export async function POST(req: NextRequest) {
 
   if (links && links.length > 0) {
     const intentLabel =
-      intent === 'appointment' ? '📅 Appointment Request'
-      : intent === 'lab' ? '🧪 Lab Test Request'
-      : intent === 'prescription' ? '💊 Prescription Query'
-      : '💬 General Health Query'
+      intent === 'appointment' ? 'ðŸ“… Appointment Request'
+      : intent === 'lab' ? 'ðŸ§ª Lab Test Request'
+      : intent === 'prescription' ? 'ðŸ’Š Prescription Query'
+      : 'ðŸ’¬ General Health Query'
 
     const notifMessage = summary
       ? `${patientName} spoke with the AI receptionist (${intentLabel}).\n\nSummary: ${summary}`
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
 
     const notifications = links.map((l: { doctor_id: string }) => ({
       doctor_id: l.doctor_id,
-      title: `Voice Call Log — ${patientName}`,
+      title: `Voice Call Log â€” ${patientName}`,
       message: notifMessage,
       type: intent === 'appointment' ? 'appointment' : intent === 'lab' ? 'result' : 'system',
     }))
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ log })
 }
 
-// GET /api/patient/call-logs — fetch patient's own call logs
+// GET /api/patient/call-logs â€” fetch patient's own call logs
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

@@ -6,11 +6,23 @@ import OpdScroll from '@/components/patient/OpdScroll';
 import PatientNavbar from '@/components/patient/PatientNavbar';
 import NeuralNetworkContainer from '@/components/ui/NeuralNetworkContainer';
 import Footer from '@/components/patient/Footer';
-import { Video, MessageSquare, Calendar, User, Stethoscope, ArrowLeft, X, Star, Send, ChevronLeft, ChevronRight, Link2, CheckCircle2, Clock, CalendarCheck, Loader2 } from 'lucide-react';
+import { Video, MessageSquare, Calendar, User, Stethoscope, ArrowLeft, X, Star, Send, ChevronLeft, ChevronRight, Link2, CheckCircle2, Clock, CalendarCheck, Loader2, MapPin } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { openGoogleMeet } from '@/lib/videosdk';
+import { ScrollLock } from '@/hooks/useScrollLock';
 
-// Doctor type definition
+// Real doctor from DB
+interface RealDoctor {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  specialty: string;
+  experience: string | null;
+  qualifications: string | null;
+  licenseNumber: string | null;
+}
+
+// Legacy Doctor type kept for modal compatibility (book appointment / doctor details)
 interface Doctor {
   id: number;
   name: string;
@@ -123,6 +135,18 @@ export default function ConsultDoctorPage() {
   const [showDashboard, setShowDashboard] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const heroRef = useRef<HTMLDivElement>(null);
+
+  // Real doctors from DB
+  const [realDoctors, setRealDoctors] = useState<RealDoctor[]>([]);
+  const [doctorsLoading, setDoctorsLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/public/doctors')
+      .then(r => r.json())
+      .then(d => setRealDoctors(d.doctors ?? []))
+      .catch(() => {})
+      .finally(() => setDoctorsLoading(false));
+  }, []);
   
   // Modal states
   const [showChatModal, setShowChatModal] = useState(false);
@@ -272,7 +296,7 @@ export default function ConsultDoctorPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         doctorName: selectedDoctor?.name ?? null,
-        doctorId: null,
+        doctorId: realDoctors.find(d => d.name === selectedDoctor?.name)?.id ?? null,
         date: appointmentDate,
         time: appointmentTime,
         type: 'Consultation',
@@ -529,63 +553,91 @@ export default function ConsultDoctorPage() {
         {/* Available Doctors Section */}
         <div className="mt-12">
           <h2 className="text-2xl font-bold text-gray-800 mb-6">Available Specialists</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {DOCTORS.map((doctor) => (
-              <div 
-                key={doctor.id} 
-                className="bg-white rounded-xl p-6 shadow hover:shadow-md transition-all cursor-pointer"
-                onClick={() => handleDoctorClick(doctor)}
-              >
-                <div className="flex items-start space-x-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <User className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-bold text-gray-800">{doctor.name}</h3>
-                    <p className="text-sm text-gray-600 flex items-center mt-1">
-                      <Stethoscope className="w-4 h-4 mr-1" />
-                      {doctor.specialty}
-                    </p>
-                    <div className="flex items-center mt-2 space-x-3">
-                      <div className="flex items-center">
-                        <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                        <span className="text-sm text-gray-700 ml-1">{doctor.rating}</span>
-                      </div>
-                      <span className="text-sm text-gray-500">({doctor.reviews} reviews)</span>
-                    </div>
-                    <div className="flex items-center mt-2">
-                      <div className={`w-2 h-2 rounded-full ${doctor.available ? 'bg-green-500' : 'bg-gray-400'} mr-2`}></div>
-                      <span className="text-sm text-gray-600">
-                        {doctor.available ? 'Available Now' : 'Busy'}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-500 mt-1">Fee: ₹{doctor.fee}</p>
-                  </div>
-                </div>
-                <button 
-                  type="button"
-                  disabled={!doctor.available}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleBookAppointment(doctor);
-                  }}
-                  className={`w-full mt-4 px-4 py-2 rounded-lg transition-colors ${
-                    doctor.available 
-                      ? 'bg-blue-600 text-white hover:bg-blue-700' 
-                      : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                  }`}
+
+          {doctorsLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+            </div>
+          ) : realDoctors.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 shadow-sm">
+              <User className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-lg font-semibold text-gray-600">No specialists registered yet</p>
+              <p className="text-sm text-gray-400 mt-1">Doctors will appear here once they sign up.</p>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {realDoctors.map((doctor) => (
+                <div
+                  key={doctor.id}
+                  className="bg-white rounded-xl p-6 shadow hover:shadow-md transition-all cursor-pointer"
+                  onClick={() => handleBookAppointment({
+                    id: 0, name: doctor.name, specialty: doctor.specialty,
+                    available: true, rating: 0, reviews: 0,
+                    experience: doctor.experience ?? '', fee: 0, nextSlot: '',
+                    qualifications: doctor.qualifications ?? '',
+                    hospital: '', languages: [], about: '', slots: [], tags: [], reviewList: [],
+                  })}
                 >
-                  {doctor.available ? 'Book Consultation' : 'Not Available'}
-                </button>
-              </div>
-            ))}
-          </div>
+                  <div className="flex items-start space-x-4">
+                    {/* Avatar */}
+                    {doctor.avatarUrl ? (
+                      <img
+                        src={doctor.avatarUrl}
+                        alt={doctor.name}
+                        className="w-12 h-12 rounded-full object-cover flex-shrink-0 border-2 border-blue-100"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <User className="w-6 h-6 text-blue-600" />
+                      </div>
+                    )}
+
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-gray-800 truncate">{doctor.name}</h3>
+                      <p className="text-sm text-gray-600 flex items-center mt-1">
+                        <Stethoscope className="w-4 h-4 mr-1 shrink-0" />
+                        {doctor.specialty}
+                      </p>
+                      {doctor.experience && (
+                        <p className="text-xs text-gray-500 mt-1">{doctor.experience} experience</p>
+                      )}
+                      {doctor.qualifications && (
+                        <p className="text-xs text-gray-400 mt-0.5 truncate">{doctor.qualifications}</p>
+                      )}
+                      <div className="flex items-center mt-2">
+                        <div className="w-2 h-2 rounded-full bg-green-500 mr-2" />
+                        <span className="text-sm text-gray-600">Available</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleBookAppointment({
+                        id: 0, name: doctor.name, specialty: doctor.specialty,
+                        available: true, rating: 0, reviews: 0,
+                        experience: doctor.experience ?? '', fee: 0, nextSlot: '',
+                        qualifications: doctor.qualifications ?? '',
+                        hospital: '', languages: [], about: '', slots: [], tags: [], reviewList: [],
+                      });
+                    }}
+                    className="w-full mt-4 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                  >
+                    Book Consultation
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Chat Modal */}
       {showChatModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <ScrollLock />
           <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl flex flex-col h-[600px]">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <div className="flex items-center space-x-4">
@@ -652,6 +704,7 @@ export default function ConsultDoctorPage() {
       {/* Appointment Booking Modal */}
       {showAppointmentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <ScrollLock />
           <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => {
@@ -903,6 +956,7 @@ export default function ConsultDoctorPage() {
       {/* Doctor Details Modal */}
       {showDoctorDetails && selectedDoctor && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <ScrollLock />
           <div className="relative w-full max-w-3xl bg-white rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => {

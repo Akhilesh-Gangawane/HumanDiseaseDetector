@@ -1,7 +1,7 @@
 'use client'
 
 import { motion, useInView, AnimatePresence } from 'framer-motion'
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import VideoTransition from '../VideoTransition'
 
@@ -10,24 +10,30 @@ export default function CTASection() {
   const isInView = useInView(ref, { once: true, margin: '-100px' })
   const router = useRouter()
   const [isTransitioning, setIsTransitioning] = useState(false)
+  const [stats, setStats] = useState({ doctors: 0, medicines: 0 })
+
+  useEffect(() => {
+    fetch('/api/public/stats')
+      .then(r => r.json())
+      .then(d => setStats({ doctors: d.doctors ?? 0, medicines: d.medicines ?? 0 }))
+      .catch(() => {})
+  }, [])
 
   const scrollToSection = (href: string) => {
     const element = document.querySelector(href)
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' })
-    }
+    if (element) element.scrollIntoView({ behavior: 'smooth' })
   }
 
   const handleStartTrial = () => {
     setIsTransitioning(true)
-    setTimeout(() => {
-      router.push('/login')
-    }, 2000) // Adjust timing based on video duration
+    setTimeout(() => router.push('/login'), 2000)
   }
+
+  const formatStat = (n: number) =>
+    n >= 1000 ? `${Math.floor(n / 1000)}K+` : n > 0 ? `${n}+` : '—'
 
   return (
     <section ref={ref} className="py-24 px-6 bg-gradient-to-br from-sky-500 via-sky-600 to-sky-700 relative overflow-hidden">
-      {/* Transition Overlay */}
       <AnimatePresence>
         {isTransitioning && (
           <motion.div
@@ -40,6 +46,7 @@ export default function CTASection() {
           </motion.div>
         )}
       </AnimatePresence>
+
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl" />
@@ -56,7 +63,8 @@ export default function CTASection() {
             Ready to Experience Better Healthcare?
           </h2>
           <p className="text-xl text-sky-100 mb-10 leading-relaxed">
-            Join thousands of users who trust Dhanvantari AI for comprehensive healthcare services from disease prediction to medicine delivery.
+            Join thousands of users who trust Dhanvantari AI for comprehensive healthcare services
+            from disease prediction to medicine delivery.
           </p>
 
           <motion.div
@@ -91,12 +99,12 @@ export default function CTASection() {
             className="mt-12 flex items-center justify-center gap-8 text-white"
           >
             <div className="text-center backdrop-blur-lg bg-white/10 p-4 rounded-2xl hover:bg-white/20 hover:scale-105 transition-all duration-300">
-              <div className="text-3xl font-bold">500+</div>
+              <div className="text-3xl font-bold">{formatStat(stats.doctors)}</div>
               <div className="text-sky-100">Doctors</div>
             </div>
             <div className="w-px h-12 bg-sky-400" />
             <div className="text-center backdrop-blur-lg bg-white/10 p-4 rounded-2xl hover:bg-white/20 hover:scale-105 transition-all duration-300">
-              <div className="text-3xl font-bold">10K+</div>
+              <div className="text-3xl font-bold">{formatStat(stats.medicines)}</div>
               <div className="text-sky-100">Medicines</div>
             </div>
             <div className="w-px h-12 bg-sky-400" />

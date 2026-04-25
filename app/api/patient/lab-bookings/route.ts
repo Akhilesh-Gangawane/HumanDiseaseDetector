@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/authOptions'
 import { supabaseServer } from '@/lib/supabaseServer'
 
 async function getPatientRow(email: string) {
-  const { data } = await supabaseServer
+  const { data: userRow } = await supabaseServer
     .from('users').select('id, role, full_name').eq('email', email).single()
-  if (!data || data.role !== 'patient') return null
-  return data
+  if (!userRow || userRow.role !== 'patient') return null
+
+  const { data: patientRow } = await supabaseServer
+    .from('patients').select('id').eq('user_id', userRow.id).single()
+
+  return { ...userRow, patientId: patientRow?.id ?? null }
 }
 
-// POST /api/patient/lab-bookings — patient books lab tests, creates entries visible to doctor
+// POST /api/patient/lab-bookings â€” patient books lab tests
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -24,64 +28,82 @@ export async function POST(req: NextRequest) {
   if (!tests || tests.length === 0)
     return NextResponse.json({ error: 'No tests provided' }, { status: 400 })
 
-  const patientName = patient.full_name ?? session.user.email
+  const bookingId = `LAB-${Date.now()}`
+  const total = tests.reduce((sum: number, t: { price?: number }) => sum + (t.price ?? 0), 0)
 
-  // Insert one lab_test row per test
-  const rows = tests.map((t: { name: string }) => ({
-    id: `PT-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-    doctor_id: null,
-    patient_id: patient.id,
-    patient_name: patientName,
+  // Insert pathology booking
+  const { data: booking, error: bookingError } = await supabaseServer
+    .from('pathology_bookings')
+    .insert({
+      id: bookingId,
+      patient_id: patient.patientId,
+      total,
+      status: 'pending',
+      full_name: patient.full_name ?? session.user.email,
+    })
+    .select()
+    .single()
+
+  if (bookingError) return NextResponse.json({ error: bookingError.message }, { status: 500 })
+
+  // Insert booking items
+  const items = tests.map((t: { name: string; price?: number }) => ({
+    booking_id: bookingId,
     test_name: t.name,
-    priority: 'Normal',
-    status: 'Pending',
-    diagnosis_reason: 'Patient self-booked',
-    lab_values: [],
-    initiated_by: 'patient',
+    price: t.price ?? 0,
+    type: 'test',
   }))
 
-  const { data, error } = await supabaseServer
-    .from('lab_tests')
-    .insert(rows)
-    .select()
+  await supabaseServer.from('pathology_booking_items').insert(items)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  // Notify assigned doctors via notifications table
+  if (patient.patientId) {
+    const { data: doctorLinks } = await supabaseServer
+      .from('appointments')
+      .select('doctor_id')
+      .eq('patient_id', patient.patientId)
+      .limit(5)
 
-  // Notify all assigned doctors
-  const { data: links } = await supabaseServer
-    .from('doctor_patients')
-    .select('doctor_id')
-    .eq('patient_id', patient.id)
+    if (doctorLinks && doctorLinks.length > 0) {
+      const testNames = tests.map((t: { name: string }) => t.name).join(', ')
+      const uniqueDoctorIds = [...new Set(doctorLinks.map((l: { doctor_id: string }) => l.doctor_id))]
 
-  if (links && links.length > 0) {
-    const testNames = tests.map((t: { name: string }) => t.name).join(', ')
-    const notifications = links.map((l: { doctor_id: string }) => ({
-      doctor_id: l.doctor_id,
-      title: 'Patient Booked Lab Tests',
-      message: `${patientName} has self-booked lab tests: ${testNames}. Please review when results are available.`,
-      type: 'result' as const,
-    }))
-    await supabaseServer.from('doctor_notifications').insert(notifications)
+      // Get doctor user_ids
+      const { data: doctorUsers } = await supabaseServer
+        .from('doctors')
+        .select('user_id')
+        .in('id', uniqueDoctorIds)
+
+      if (doctorUsers && doctorUsers.length > 0) {
+        const notifications = doctorUsers.map((d: { user_id: string }) => ({
+          user_id: d.user_id,
+          title: 'Patient Booked Lab Tests',
+          message: `${patient.full_name ?? 'A patient'} has self-booked lab tests: ${testNames}.`,
+          type: 'result' as const,
+        }))
+        await supabaseServer.from('notifications').insert(notifications)
+      }
+    }
   }
 
-  return NextResponse.json({ tests: data })
+  return NextResponse.json({ booking })
 }
 
-// GET /api/patient/lab-bookings — fetch patient's own lab bookings
+// GET /api/patient/lab-bookings â€” fetch patient's own lab bookings
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const patient = await getPatientRow(session.user.email)
-  if (!patient) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!patient || !patient.patientId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { data, error } = await supabaseServer
-    .from('lab_tests')
-    .select('*')
-    .eq('patient_id', patient.id)
+    .from('pathology_bookings')
+    .select('*, pathology_booking_items(*)')
+    .eq('patient_id', patient.patientId)
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  return NextResponse.json({ tests: data ?? [] })
+  return NextResponse.json({ bookings: data ?? [] })
 }

@@ -23,6 +23,58 @@ export interface CalendarEventResult {
 }
 
 /**
+ * Refreshes a Google OAuth access token using the stored refresh token.
+ * Returns the new access token, or null if refresh fails.
+ */
+export async function refreshGoogleAccessToken(refreshToken: string): Promise<string | null> {
+  try {
+    const res = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id:     process.env.AUTH_GOOGLE_ID!,
+        client_secret: process.env.AUTH_GOOGLE_SECRET!,
+        grant_type:    'refresh_token',
+        refresh_token: refreshToken,
+      }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.access_token ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Returns a valid access token for a user given their stored tokens.
+ * Tries the access token first; if it fails with 401, refreshes it.
+ * Returns null if no valid token can be obtained.
+ */
+export async function getValidAccessToken(
+  accessToken: string | null,
+  refreshToken: string | null,
+): Promise<string | null> {
+  if (!accessToken && !refreshToken) return null
+
+  // If we have an access token, try it — if it fails refresh
+  if (accessToken) {
+    const probe = await fetch(
+      'https://www.googleapis.com/calendar/v3/calendars/primary?fields=id',
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    )
+    if (probe.ok) return accessToken
+  }
+
+  // Access token missing or expired — try to refresh
+  if (refreshToken) {
+    return await refreshGoogleAccessToken(refreshToken)
+  }
+
+  return null
+}
+
+/**
  * Creates a Google Calendar event with a Google Meet conference room.
  * Returns the event link and the generated Meet link.
  */

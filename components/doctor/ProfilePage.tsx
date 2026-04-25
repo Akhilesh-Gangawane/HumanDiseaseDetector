@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { User, Mail, Phone, MapPin, Award, Calendar, Check, Edit2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { User, Mail, Phone, MapPin, Award, Calendar, Check, Edit2, Camera, Loader2, ShieldCheck, ShieldAlert, Clock, Shield } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
 interface DoctorProfile {
@@ -14,6 +14,10 @@ interface DoctorProfile {
   experience: string;
   certifications: string;
   avatarUrl: string;
+  verificationStatus: 'unverified' | 'pending' | 'verified' | 'rejected';
+  medicalCouncil: string;
+  registrationYear: string;
+  rejectionReason: string;
 }
 
 const defaultProfile: DoctorProfile = {
@@ -26,6 +30,10 @@ const defaultProfile: DoctorProfile = {
   experience: '',
   certifications: '',
   avatarUrl: '',
+  verificationStatus: 'unverified',
+  medicalCouncil: '',
+  registrationYear: '',
+  rejectionReason: '',
 };
 
 export default function ProfilePage() {
@@ -35,6 +43,37 @@ export default function ProfilePage() {
   const [editedProfile, setEditedProfile] = useState<DoctorProfile>(defaultProfile);
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
+
+  // Avatar state
+  const [avatarUrl, setAvatarUrl] = useState<string>('');
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarError(null);
+    setAvatarUploading(true);
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const res = await fetch('/api/user/avatar', { method: 'POST', body: form });
+      const json = await res.json();
+      if (!res.ok) {
+        setAvatarError(json.error ?? 'Upload failed');
+      } else {
+        setAvatarUrl(json.avatarUrl);
+        setProfile(prev => ({ ...prev, avatarUrl: json.avatarUrl }));
+        setEditedProfile(prev => ({ ...prev, avatarUrl: json.avatarUrl }));
+      }
+    } catch {
+      setAvatarError('Upload failed. Please try again.');
+    } finally {
+      setAvatarUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   useEffect(() => {
     if (!session?.user?.email) return;
@@ -54,9 +93,14 @@ export default function ProfilePage() {
         experience: doctorRow?.experience_years ? `${doctorRow.experience_years}` : '',
         certifications: doctorRow?.qualifications?.join(', ') ?? '',
         avatarUrl: userRow.avatar_url ?? session.user?.image ?? '',
+        verificationStatus: doctorRow?.verification_status ?? 'unverified',
+        medicalCouncil: doctorRow?.medical_council ?? '',
+        registrationYear: doctorRow?.registration_year ? `${doctorRow.registration_year}` : '',
+        rejectionReason: doctorRow?.rejection_reason ?? '',
       };
       setProfile(merged);
       setEditedProfile(merged);
+      setAvatarUrl(merged.avatarUrl);
       setLoading(false);
     };
     fetchProfile();
@@ -78,17 +122,20 @@ export default function ProfilePage() {
       body: JSON.stringify({
         full_name: editedProfile.name,
         doctor: {
-          specialization: editedProfile.specialty,
-          license_number: editedProfile.license,
-          experience_years: editedProfile.experience ? parseInt(editedProfile.experience) || null : null,
-          certifications: editedProfile.certifications,
+          specialization:      editedProfile.specialty,
+          license_number:      editedProfile.license,
+          experience_years:    editedProfile.experience ? parseInt(editedProfile.experience) || null : null,
+          certifications:      editedProfile.certifications,
+          medical_council:     editedProfile.medicalCouncil || null,
+          registration_year:   editedProfile.registrationYear ? parseInt(editedProfile.registrationYear) || null : null,
+          // If they just added a registration number and were unverified, bump to pending
+          ...(editedProfile.license && editedProfile.medicalCouncil && profile.verificationStatus === 'unverified'
+            ? { verification_status: 'pending' }
+            : {}),
         },
       }),
     });
   };
-
-  const avatarSrc = profile.avatarUrl ||
-    `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(profile.name || 'Doctor')}`;
 
   if (loading) {
     return (
@@ -117,11 +164,40 @@ export default function ProfilePage() {
         <div className="lg:col-span-1">
           <div className="bg-white rounded-2xl shadow-lg p-6">
             <div className="flex flex-col items-center">
-              <img
-                src={avatarSrc}
-                alt={data.name}
-                className="w-32 h-32 rounded-full mb-4 object-cover"
-              />
+              <div className="relative mb-4">
+                <img
+                  src={avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.name || 'Doctor')}`}
+                  alt={data.name}
+                  className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
+                />
+
+                {/* Hidden file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                  aria-label="Upload profile photo"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={avatarUploading}
+                  className="absolute bottom-0 right-0 p-2 bg-white rounded-full shadow-lg hover:scale-110 transition-transform border-2 border-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                  aria-label="Change profile picture"
+                >
+                  {avatarUploading
+                    ? <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                    : <Camera className="w-4 h-4 text-blue-600" />
+                  }
+                </button>
+              </div>
+
+              {avatarError && (
+                <p className="text-xs text-red-500 mb-2 text-center max-w-[140px]">{avatarError}</p>
+              )}
               {isEditing ? (
                 <div className="w-full space-y-2 mb-4">
                   <label htmlFor="profile-name" className="sr-only">Full Name</label>
@@ -150,10 +226,44 @@ export default function ProfilePage() {
                   <p className="text-gray-600 mb-4">{data.specialty || 'Specialist'}</p>
                 </>
               )}
-              <div className="flex gap-2 mb-6">
+              <div className="flex gap-2 mb-6 flex-wrap justify-center">
                 <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">Online</span>
-                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">Verified</span>
+                {/* Dynamic verification badge */}
+                {data.verificationStatus === 'verified' && (
+                  <span className="flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
+                    <ShieldCheck className="w-3.5 h-3.5" /> Verified
+                  </span>
+                )}
+                {data.verificationStatus === 'pending' && (
+                  <span className="flex items-center gap-1 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-semibold">
+                    <Clock className="w-3.5 h-3.5" /> Verification Pending
+                  </span>
+                )}
+                {data.verificationStatus === 'unverified' && (
+                  <span className="flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm font-semibold">
+                    <ShieldAlert className="w-3.5 h-3.5" /> Not Verified
+                  </span>
+                )}
+                {data.verificationStatus === 'rejected' && (
+                  <span className="flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-semibold">
+                    <Shield className="w-3.5 h-3.5" /> Verification Failed
+                  </span>
+                )}
               </div>
+
+              {/* Rejection reason notice */}
+              {data.verificationStatus === 'rejected' && data.rejectionReason && (
+                <div className="w-full mb-4 bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">
+                  <strong>Reason:</strong> {data.rejectionReason}
+                </div>
+              )}
+
+              {/* Prompt to submit registration if unverified */}
+              {data.verificationStatus === 'unverified' && (
+                <div className="w-full mb-4 bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
+                  Add your Medical Registration Number in Professional Details below to submit for verification.
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => isEditing ? handleSave() : setIsEditing(true)}
@@ -205,10 +315,12 @@ export default function ProfilePage() {
             <h3 className="text-xl font-bold text-gray-900 mb-6">Professional Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[
-                { icon: Award, color: 'blue', label: 'License Number', field: 'license' },
-                { icon: Calendar, color: 'green', label: 'Years of Experience', field: 'experience' },
-                { icon: User, color: 'purple', label: 'Specialization', field: 'specialty' },
-                { icon: Award, color: 'orange', label: 'Certifications', field: 'certifications' },
+                { icon: Award,       color: 'blue',   label: 'License / Registration Number', field: 'license' },
+                { icon: Calendar,    color: 'green',  label: 'Years of Experience',            field: 'experience' },
+                { icon: User,        color: 'purple', label: 'Specialization',                 field: 'specialty' },
+                { icon: Award,       color: 'orange', label: 'Certifications',                 field: 'certifications' },
+                { icon: ShieldCheck, color: 'teal',   label: 'State Medical Council',          field: 'medicalCouncil' },
+                { icon: Calendar,    color: 'teal',   label: 'Year of Registration',           field: 'registrationYear' },
               ].map(({ icon: Icon, color, label, field }) => (
                 <div key={field}>
                   <div className="flex items-center gap-2 mb-2">
@@ -222,16 +334,40 @@ export default function ProfilePage() {
                         id={`prof-${field}`}
                         type="text"
                         name={field}
-                        value={editedProfile[field as keyof DoctorProfile]}
+                        value={(editedProfile[field as keyof DoctorProfile] as string) ?? ''}
                         onChange={handleChange}
                         className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </>
                   ) : (
-                    <p className="font-semibold text-gray-900">{data[field as keyof DoctorProfile] || '—'}</p>
+                    <p className="font-semibold text-gray-900">{(data[field as keyof DoctorProfile] as string) || '—'}</p>
                   )}
                 </div>
               ))}
+            </div>
+
+            {/* Verification status summary */}
+            <div className={`mt-6 rounded-xl p-4 flex items-start gap-3 ${
+              data.verificationStatus === 'verified'    ? 'bg-blue-50 border border-blue-200' :
+              data.verificationStatus === 'pending'     ? 'bg-amber-50 border border-amber-200' :
+              data.verificationStatus === 'rejected'    ? 'bg-red-50 border border-red-200' :
+              'bg-gray-50 border border-gray-200'
+            }`}>
+              {data.verificationStatus === 'verified'   && <ShieldCheck className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />}
+              {data.verificationStatus === 'pending'    && <Clock className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />}
+              {data.verificationStatus === 'rejected'   && <Shield className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />}
+              {data.verificationStatus === 'unverified' && <ShieldAlert className="w-5 h-5 text-gray-500 mt-0.5 shrink-0" />}
+              <p className={`text-sm font-medium ${
+                data.verificationStatus === 'verified'   ? 'text-blue-700' :
+                data.verificationStatus === 'pending'    ? 'text-amber-700' :
+                data.verificationStatus === 'rejected'   ? 'text-red-700' :
+                'text-gray-600'
+              }`}>
+                {data.verificationStatus === 'verified'   && 'Your medical registration has been verified.'}
+                {data.verificationStatus === 'pending'    && 'Verification in progress — our team is reviewing your registration details.'}
+                {data.verificationStatus === 'rejected'   && `Verification unsuccessful. ${data.rejectionReason ? `Reason: ${data.rejectionReason}` : 'Please update your details and contact support.'}`}
+                {data.verificationStatus === 'unverified' && 'Not yet submitted. Add your registration number and save to submit for verification.'}
+              </p>
             </div>
           </div>
         </div>

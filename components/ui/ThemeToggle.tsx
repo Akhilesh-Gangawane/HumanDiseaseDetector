@@ -103,7 +103,7 @@ export default function ThemeToggle() {
               cx="12"
               cy="12"
               r="4"
-              stroke={iconColor}
+              stroke={iconColor as unknown as string}
               strokeWidth="2"
               fill="none"
             />

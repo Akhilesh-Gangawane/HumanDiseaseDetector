@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Plus, Trash2, FileDown, Pill, SendToBack } from 'lucide-react';
 import Swal from 'sweetalert2';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { useDoctorState } from './DoctorStateContext';
 
 interface Medicine {
@@ -63,7 +63,7 @@ export default function PrescriptionGenerator() {
       doc.text('Rx - Prescribed Medicines:', 14, 70);
       const validMedicines = medicines.filter(m => m.name.trim() !== '');
       if (validMedicines.length > 0) {
-        (doc as any).autoTable({
+        autoTable(doc, {
           head: [["Medicine Name", "Dosage", "Duration"]],
           body: validMedicines.map(m => [m.name, m.dosage, m.duration]),
           startY: 76,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { BookOpen, Brain, Heart, Pill, Activity, Search, ExternalLink, Clock, TrendingUp, Star, ChevronRight, Zap, Shield, Eye, ArrowLeft } from 'lucide-react';
 import PatientNavbar from '@/components/patient/PatientNavbar';
 import NeuralNetworkContainer from '@/components/ui/NeuralNetworkContainer';
@@ -309,8 +309,34 @@ export default function KnowledgeCenterPage() {
   const [query, setQuery] = useState('');
   const [visible, setVisible] = useState<Record<string, boolean>>({});
   const observers = useRef<Record<string, IntersectionObserver>>({});
+  const [articles, setArticles] = useState(ARTICLES);
 
-  const filtered = ARTICLES.filter(a =>
+  // Fetch articles from API, fall back to static data
+  useEffect(() => {
+    fetch('/api/public/knowledge-articles')
+      .then(r => r.json())
+      .then(d => {
+        if (d.articles && d.articles.length > 0) {
+          setArticles(d.articles.map((a: {
+            title: string; category: string; tag: string; tag_color: string;
+            read_mins: number; stars: number; description: string; url: string; image_url: string;
+          }) => ({
+            title: a.title,
+            category: a.category,
+            tag: a.tag,
+            tagColor: a.tag_color,
+            mins: a.read_mins,
+            stars: a.stars,
+            desc: a.description,
+            url: a.url,
+            img: a.image_url,
+          })));
+        }
+      })
+      .catch(() => {}); // silently fall back to static data
+  }, []);
+
+  const filtered = articles.filter(a =>
     !query || a.title.toLowerCase().includes(query.toLowerCase()) ||
     a.category.toLowerCase().includes(query.toLowerCase())
   );

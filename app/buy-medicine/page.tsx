@@ -8,19 +8,19 @@ import Footer from '@/components/patient/Footer';
 import { AddressModal, PaymentModal } from '@/components/patient/CheckoutModals';
 import { OrderReviewModal, OrderSuccessModal, ReceiptModal } from '@/components/patient/OrderModals';
 import Swal from 'sweetalert2';
-import { ShoppingCart, Search, Heart, Star, TrendingUp, Package, Clock, Shield, X, Plus, Minus, Pill, ArrowLeft, Zap, Award, CreditCard, Truck, MapPin, Phone, Mail, User, CheckCircle2, Download, Calendar, Home, Building } from 'lucide-react';
+import { ShoppingCart, Search, Heart, Star, TrendingUp, Package, Clock, Shield, X, Plus, Minus, Pill, ArrowLeft, Zap, Award, CreditCard, Truck, MapPin, Phone, Mail, User, CheckCircle2, Download, Calendar, Home, Building, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface Medicine {
-  id: number;
+  id: string;
   name: string;
   category: string;
   price: number;
-  originalPrice?: number;
+  original_price?: number;
   rating: number;
-  reviews: number;
-  inStock: boolean;
-  prescription: boolean;
+  reviews_count: number;
+  in_stock: boolean;
+  requires_prescription: boolean;
   image: string;
   manufacturer: string;
   description: string;
@@ -63,129 +63,21 @@ interface Order {
   status: 'pending' | 'confirmed' | 'shipped' | 'delivered';
 }
 
-const medicines: Medicine[] = [
-  {
-    id: 1,
-    name: 'Paracetamol 500mg',
-    category: 'Pain Relief',
-    price: 45,
-    originalPrice: 60,
-    rating: 4.5,
-    reviews: 234,
-    inStock: true,
-    prescription: false,
-    image: '💊',
-    manufacturer: 'PharmaCorp',
-    description: 'Effective pain and fever relief'
-  },
-  {
-    id: 2,
-    name: 'Amoxicillin 250mg',
-    category: 'Antibiotics',
-    price: 120,
-    rating: 4.8,
-    reviews: 189,
-    inStock: true,
-    prescription: true,
-    image: '💊',
-    manufacturer: 'MediLife',
-    description: 'Broad-spectrum antibiotic'
-  },
-  {
-    id: 3,
-    name: 'Vitamin D3 Tablets',
-    category: 'Vitamins',
-    price: 280,
-    originalPrice: 350,
-    rating: 4.6,
-    reviews: 456,
-    inStock: true,
-    prescription: false,
-    image: '💊',
-    manufacturer: 'HealthPlus',
-    description: 'Essential vitamin supplement'
-  },
-  {
-    id: 4,
-    name: 'Cetirizine 10mg',
-    category: 'Allergy',
-    price: 85,
-    rating: 4.4,
-    reviews: 312,
-    inStock: true,
-    prescription: false,
-    image: '💊',
-    manufacturer: 'AllerCare',
-    description: 'Antihistamine for allergies'
-  },
-  {
-    id: 5,
-    name: 'Omeprazole 20mg',
-    category: 'Digestive',
-    price: 95,
-    originalPrice: 120,
-    rating: 4.7,
-    reviews: 278,
-    inStock: true,
-    prescription: false,
-    image: '💊',
-    manufacturer: 'GastroMed',
-    description: 'Reduces stomach acid'
-  },
-  {
-    id: 6,
-    name: 'Aspirin 75mg',
-    category: 'Cardiovascular',
-    price: 55,
-    rating: 4.3,
-    reviews: 198,
-    inStock: true,
-    prescription: false,
-    image: '💊',
-    manufacturer: 'CardioHealth',
-    description: 'Blood thinner for heart health'
-  },
-  {
-    id: 7,
-    name: 'Metformin 500mg',
-    category: 'Diabetes',
-    price: 150,
-    rating: 4.6,
-    reviews: 423,
-    inStock: true,
-    prescription: true,
-    image: '💊',
-    manufacturer: 'DiabeCare',
-    description: 'Diabetes management'
-  },
-  {
-    id: 8,
-    name: 'Ibuprofen 400mg',
-    category: 'Pain Relief',
-    price: 65,
-    originalPrice: 80,
-    rating: 4.5,
-    reviews: 567,
-    inStock: true,
-    prescription: false,
-    image: '💊',
-    manufacturer: 'PainAway',
-    description: 'Anti-inflammatory pain relief'
-  }
-];
-
-const categories = ['All', 'Pain Relief', 'Antibiotics', 'Vitamins', 'Allergy', 'Digestive', 'Cardiovascular', 'Diabetes'];
-
 export default function BuyMedicinePage() {
   const router = useRouter();
   const [showStore, setShowStore] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [wishlist, setWishlist] = useState<number[]>([]);
+  const [wishlist, setWishlist] = useState<string[]>([]);
   const [showCart, setShowCart] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const heroRef = useRef<HTMLDivElement>(null);
+
+  // Dynamic data from API
+  const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [loadingMedicines, setLoadingMedicines] = useState(true);
+  const [medicineStats, setMedicineStats] = useState({ total: '10K+', orders: '50K+', rating: '4.8★' });
   
   // Checkout states
   const [checkoutStep, setCheckoutStep] = useState<'cart' | 'address' | 'payment' | 'review' | 'success'>('cart');
@@ -208,6 +100,34 @@ export default function BuyMedicinePage() {
   const [discount, setDiscount] = useState(0);
   const [showReceipt, setShowReceipt] = useState(false);
 
+  // Fetch medicines from API
+  useEffect(() => {
+    fetch('/api/public/medicines')
+      .then(r => r.json())
+      .then(d => {
+        const meds = (d.medicines ?? []).map((m: Medicine) => ({ ...m, image: '💊' }));
+        setMedicines(meds);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingMedicines(false));
+  }, []);
+
+  // Fetch platform stats
+  useEffect(() => {
+    fetch('/api/public/stats')
+      .then(r => r.json())
+      .then(d => {
+        if (d.medicines) {
+          setMedicineStats({
+            total: d.medicines > 1000 ? `${Math.floor(d.medicines / 1000)}K+` : `${d.medicines}+`,
+            orders: d.predictions > 1000 ? `${Math.floor(d.predictions / 1000)}K+` : `${d.predictions}+`,
+            rating: '4.8★',
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (heroRef.current) {
@@ -224,6 +144,9 @@ export default function BuyMedicinePage() {
       return () => heroElement.removeEventListener('mousemove', handleMouseMove);
     }
   }, [showStore]);
+
+  // Derive categories dynamically from fetched medicines
+  const categories = ['All', ...Array.from(new Set(medicines.map(m => m.category).filter(Boolean)))];
 
   if (!showStore) {
     return (
@@ -252,11 +175,11 @@ export default function BuyMedicinePage() {
     });
   };
 
-  const removeFromCart = (id: number) => {
+  const removeFromCart = (id: string) => {
     setCart(prev => prev.filter(item => item.id !== id));
   };
 
-  const updateQuantity = (id: number, delta: number) => {
+  const updateQuantity = (id: string, delta: number) => {
     setCart(prev => prev.map(item => {
       if (item.id === id) {
         const newQuantity = item.quantity + delta;
@@ -266,7 +189,7 @@ export default function BuyMedicinePage() {
     }).filter(item => item.quantity > 0));
   };
 
-  const toggleWishlist = (id: number) => {
+  const toggleWishlist = (id: string) => {
     setWishlist(prev =>
       prev.includes(id) ? prev.filter(wid => wid !== id) : [...prev, id]
     );
@@ -325,7 +248,7 @@ export default function BuyMedicinePage() {
     return false;
   };
 
-  const placeOrder = () => {
+  const placeOrder = async () => {
     const orderId = 'ORD' + Date.now().toString().slice(-8);
     const orderDate = new Date();
     const estimatedDelivery = new Date();
@@ -347,6 +270,18 @@ export default function BuyMedicinePage() {
     setCart([]);
     setDiscount(0);
     setPromoCode('');
+
+    // Save to DB
+    await fetch('/api/patient/medicine-orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items: cart.map(i => ({ name: i.name, quantity: i.quantity, price: i.price, manufacturer: i.manufacturer })),
+        total: finalTotal,
+        address: `${address.addressLine1}, ${address.city}, ${address.state} - ${address.pincode}`,
+        paymentMethod: payment.method,
+      }),
+    }).catch(() => { /* non-critical */ });
   };
 
   return (
@@ -488,9 +423,9 @@ export default function BuyMedicinePage() {
         {/* Stats */}
         <div className="grid grid-cols-3 gap-6 mb-12">
           {[
-            { val: '10K+', label: 'Products', icon: <Pill size={20} /> },
-            { val: '50K+', label: 'Orders Delivered', icon: <Package size={20} /> },
-            { val: '4.8★', label: 'Customer Rating', icon: <Star size={20} /> },
+            { val: medicineStats.total, label: 'Products', icon: <Pill size={20} /> },
+            { val: medicineStats.orders, label: 'Orders Delivered', icon: <Package size={20} /> },
+            { val: medicineStats.rating, label: 'Customer Rating', icon: <Star size={20} /> },
           ].map((s, i) => (
             <div key={i} className="bg-white rounded-xl p-6 shadow-sm text-center hover:shadow-md transition-shadow">
               <div className="flex justify-center mb-2 text-green-600">{s.icon}</div>
@@ -570,19 +505,25 @@ export default function BuyMedicinePage() {
         </div>
 
         {/* Medicine Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {filteredMedicines.map(medicine => (
-            <MedicineCard
-              key={medicine.id}
-              medicine={medicine}
-              onAddToCart={addToCart}
-              onToggleWishlist={toggleWishlist}
-              isWishlisted={wishlist.includes(medicine.id)}
-            />
-          ))}
-        </div>
+        {loadingMedicines ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="w-8 h-8 text-green-500 animate-spin" />
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {filteredMedicines.map(medicine => (
+              <MedicineCard
+                key={medicine.id}
+                medicine={medicine}
+                onAddToCart={addToCart}
+                onToggleWishlist={toggleWishlist}
+                isWishlisted={wishlist.includes(medicine.id)}
+              />
+            ))}
+          </div>
+        )}
 
-        {filteredMedicines.length === 0 && (
+        {!loadingMedicines && filteredMedicines.length === 0 && (
           <div className="text-center py-16">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Search className="w-12 h-12 text-gray-400" />
@@ -701,7 +642,7 @@ export default function BuyMedicinePage() {
 interface MedicineCardProps {
   medicine: Medicine;
   onAddToCart: (medicine: Medicine) => void;
-  onToggleWishlist: (id: number) => void;
+  onToggleWishlist: (id: string) => void;
   isWishlisted: boolean;
 }
 
@@ -723,14 +664,14 @@ function MedicineCard({ medicine, onAddToCart, onToggleWishlist, isWishlisted }:
         </button>
 
         {/* Discount Badge */}
-        {medicine.originalPrice && (
+        {medicine.original_price && (
           <div className="absolute top-3 left-3 px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-full">
-            {Math.round((1 - medicine.price / medicine.originalPrice) * 100)}% OFF
+            {Math.round((1 - medicine.price / medicine.original_price) * 100)}% OFF
           </div>
         )}
 
         {/* Prescription Badge */}
-        {medicine.prescription && (
+        {medicine.requires_prescription && (
           <div className="absolute bottom-3 left-3 px-3 py-1 bg-yellow-500 text-white text-xs font-semibold rounded-full">
             Rx Required
           </div>
@@ -753,28 +694,28 @@ function MedicineCard({ medicine, onAddToCart, onToggleWishlist, isWishlisted }:
         <div className="flex items-center space-x-1 mb-3">
           <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
           <span className="text-sm font-semibold text-gray-800">{medicine.rating}</span>
-          <span className="text-xs text-gray-500">({medicine.reviews})</span>
+          <span className="text-xs text-gray-500">({medicine.reviews_count})</span>
         </div>
 
         {/* Price and Add to Cart */}
         <div className="flex items-center justify-between">
           <div>
             <div className="text-2xl font-bold text-gray-800">₹{medicine.price}</div>
-            {medicine.originalPrice && (
-              <div className="text-sm text-gray-400 line-through">₹{medicine.originalPrice}</div>
+            {medicine.original_price && (
+              <div className="text-sm text-gray-400 line-through">₹{medicine.original_price}</div>
             )}
           </div>
           <button
             type="button"
             onClick={() => onAddToCart(medicine)}
-            disabled={!medicine.inStock}
+            disabled={!medicine.in_stock}
             className={`px-4 py-2 rounded-xl font-semibold transition-all duration-300 ${
-              medicine.inStock
+              medicine.in_stock
                 ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white hover:shadow-lg hover:scale-105'
                 : 'bg-gray-200 text-gray-500 cursor-not-allowed'
             }`}
           >
-            {medicine.inStock ? 'Add' : 'Out of Stock'}
+            {medicine.in_stock ? 'Add' : 'Out of Stock'}
           </button>
         </div>
       </div>
@@ -785,8 +726,8 @@ function MedicineCard({ medicine, onAddToCart, onToggleWishlist, isWishlisted }:
 interface CartDrawerProps {
   cart: CartItem[];
   onClose: () => void;
-  onRemove: (id: number) => void;
-  onUpdateQuantity: (id: number, delta: number) => void;
+  onRemove: (id: string) => void;
+  onUpdateQuantity: (id: string, delta: number) => void;
   total: number;
   deliveryFee: number;
   discount: number;

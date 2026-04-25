@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/authOptions'
 import { supabaseServer } from '@/lib/supabaseServer'
 
 async function getUserRow(email: string) {
@@ -9,7 +9,7 @@ async function getUserRow(email: string) {
   return data
 }
 
-// GET /api/patient/diary — fetch diary entries for logged-in user
+// GET /api/patient/diary â€” fetch diary entries for logged-in user
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -28,7 +28,7 @@ export async function GET() {
   return NextResponse.json({ entries: data ?? [] })
 }
 
-// POST /api/patient/diary — create a new diary entry
+// POST /api/patient/diary â€” create a new diary entry
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ entry: data })
 }
 
-// PATCH /api/patient/diary — update an entry
+// PATCH /api/patient/diary â€” update an entry
 export async function PATCH(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -83,7 +83,7 @@ export async function PATCH(req: NextRequest) {
   return NextResponse.json({ success: true })
 }
 
-// DELETE /api/patient/diary — delete an entry
+// DELETE /api/patient/diary â€” delete an entry
 export async function DELETE(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

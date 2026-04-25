@@ -10,6 +10,14 @@ export default withAuth(
     // If role is not yet in token (edge case on first OAuth login), let it through
     if (!role) return NextResponse.next()
 
+    // Admin-only routes
+    if (pathname.startsWith('/admin')) {
+      if (role !== 'admin') {
+        return NextResponse.redirect(new URL('/', req.url))
+      }
+      return NextResponse.next()
+    }
+
     // Doctor trying to access patient dashboard → redirect to doctor dashboard
     if (pathname.startsWith('/patient-dashboard') && role === 'doctor') {
       return NextResponse.redirect(new URL('/dashboard', req.url))
@@ -32,6 +40,7 @@ export default withAuth(
 
 export const config = {
   matcher: [
+    '/admin/:path*',
     '/dashboard/:path*',
     '/patient-dashboard/:path*',
     '/disease-prediction/:path*',

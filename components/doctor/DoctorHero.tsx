@@ -1,9 +1,13 @@
 'use client';
 
 import { Activity, Users, Calendar, ArrowRight } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import HeroScroll from '@/components/patient/HeroScroll';
 
 export default function DoctorHero({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
+    const { data: session } = useSession();
+    const doctorName = session?.user?.name ?? 'Doctor';
+
     return (
         <section className="relative pt-20 pb-12 lg:pt-28 lg:pb-16 overflow-hidden border-b border-gray-100 bg-gradient-to-br from-blue-50/80 via-white/50 to-teal-50/80 backdrop-blur-sm">
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -22,7 +26,7 @@ export default function DoctorHero({ setActiveTab }: { setActiveTab: (tab: strin
                         <h1 className="text-4xl lg:text-5xl xl:text-6xl font-extrabold leading-tight text-gray-900 tracking-tight">
                             Welcome back, <br />
                             <span className="bg-gradient-to-r from-blue-600 via-teal-600 to-blue-700 bg-clip-text text-transparent">
-                                Dr. Sarah Johnson
+                                {doctorName}
                             </span>
                         </h1>
 

@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/authOptions'
 import { supabaseServer } from '@/lib/supabaseServer'
 
-// GET /api/doctor/patients — fetch all patients assigned to the logged-in doctor
+// GET /api/doctor/patients â€” fetch all patients assigned to the logged-in doctor
 // Joins latest ai_prediction per patient for disease/confidence/risk display
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -25,7 +25,7 @@ export async function GET() {
   const [usersRes, detailsRes, predictionsRes] = await Promise.all([
     supabaseServer.from('users').select('id, full_name, avatar_url, email').in('id', patientIds),
     supabaseServer.from('patients').select('user_id, date_of_birth, gender, blood_group, chronic_conditions').in('user_id', patientIds),
-    // Latest prediction per patient (any source — doctor or patient-initiated)
+    // Latest prediction per patient (any source â€” doctor or patient-initiated)
     supabaseServer
       .from('ai_predictions')
       .select('patient_id, disease, confidence, symptoms, status')

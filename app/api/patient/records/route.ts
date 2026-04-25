@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/authOptions'
 import { supabaseServer } from '@/lib/supabaseServer'
 
-// GET /api/patient/records — fetch predictions, lab tests, vitals, prescriptions for the patient
+// GET /api/patient/records â€” fetch predictions, lab tests, vitals, prescriptions for the patient
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -26,7 +26,7 @@ export async function GET() {
 
     supabaseServer
       .from('lab_tests')
-      .select('*, users!doctor_id(full_name)')
+      .select('*, doctor:doctor_id(full_name)')
       .eq('patient_id', userRow.id)
       .order('created_at', { ascending: false }),
 
@@ -63,7 +63,9 @@ export async function GET() {
     diagnosisReason: t.diagnosis_reason ?? '',
     labValues: t.lab_values ?? [],
     requestDate: t.request_date,
-    doctorName: (t.users as { full_name?: string } | null)?.full_name ?? 'Doctor',
+    initiatedBy: t.initiated_by ?? 'doctor',
+    doctorName: (t.doctor as { full_name?: string } | null)?.full_name ?? null,
+    price: t.price ?? null,
   }))
 
   const vitals = (vitalsRes.data ?? []).map(v => ({

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/authOptions'
 import { supabaseServer } from '@/lib/supabaseServer'
 
 async function getDoctorRow(email: string) {
@@ -10,7 +10,7 @@ async function getDoctorRow(email: string) {
   return data
 }
 
-// GET /api/doctor/recordings — fetch all recordings the doctor has added
+// GET /api/doctor/recordings â€” fetch all recordings the doctor has added
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -29,7 +29,7 @@ export async function GET() {
   return NextResponse.json({ recordings: data ?? [] })
 }
 
-// POST /api/doctor/recordings — doctor adds a recording link for an appointment
+// POST /api/doctor/recordings â€” doctor adds a recording link for an appointment
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
       recording_url: recordingUrl,
       duration_mins: durationMins ?? null,
       notes: notes ?? '',
-      shared: false, // not shared by default — doctor must explicitly share
+      shared: false, // not shared by default â€” doctor must explicitly share
     })
     .select().single()
 
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ recording: data })
 }
 
-// PATCH /api/doctor/recordings — toggle shared status (share/unshare with patient)
+// PATCH /api/doctor/recordings â€” toggle shared status (share/unshare with patient)
 export async function PATCH(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -104,7 +104,7 @@ export async function PATCH(req: NextRequest) {
   return NextResponse.json({ success: true })
 }
 
-// DELETE /api/doctor/recordings — delete a recording
+// DELETE /api/doctor/recordings â€” delete a recording
 export async function DELETE(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

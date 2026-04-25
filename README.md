@@ -93,7 +93,7 @@ npm run dev
 
 1. Navigate to Model directory:
 ```bash
-cd Model
+cd Human-Health_model
 ```
 
 2. Install Python dependencies:

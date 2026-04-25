@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X, Calendar, Clock, Users, AlertCircle, CheckCircle2, Download, MapPin, Phone, Mail, FlaskConical, Loader2, Bell, TrendingUp } from 'lucide-react';
 import Swal from 'sweetalert2';
+import { ScrollLock } from '@/hooks/useScrollLock';
 
 interface TimeSlot {
   time: string;
@@ -110,16 +111,10 @@ export function BookingTimeSelector({ onSelectSlot, onClose }: BookingTimeSelect
   const handleSlotClick = (date: string, slot: TimeSlot) => {
     setSelectedDate(date);
     setSelectedTime(slot.time);
-    
     if (slot.status === 'full') {
       setShowWaitlistConfirm(true);
     } else if (slot.status === 'closed') {
-      Swal.fire({
-        icon: 'info',
-        title: 'Slot Closed',
-        text: 'This time slot is closed. Please select another available time.',
-        confirmButtonColor: '#0d9488',
-      });
+      Swal.fire({ icon: 'info', title: 'Slot Closed', text: 'This time slot is closed. Please select another available time.', confirmButtonColor: '#0d9488' });
     } else {
       onSelectSlot(date, slot.time, false);
     }
@@ -152,6 +147,7 @@ export function BookingTimeSelector({ onSelectSlot, onClose }: BookingTimeSelect
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+      <ScrollLock />
       <div className="relative w-full max-w-5xl bg-white rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto">
         <button
           onClick={onClose}
@@ -317,11 +313,11 @@ export function BookingStatusTracker({ booking, onClose }: BookingStatusTrackerP
     { key: 'processing', label: 'Lab Processing', icon: <Loader2 className="w-6 h-6 animate-spin" />, color: 'text-orange-600' },
     { key: 'completed', label: 'Report Ready', icon: <Download className="w-6 h-6" />, color: 'text-teal-600' },
   ];
-
   const currentStepIndex = statusSteps.findIndex(step => step.key === booking.status);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+      <ScrollLock />
       <div className="relative w-full max-w-3xl bg-white rounded-3xl shadow-2xl p-8">
         <button
           onClick={onClose}

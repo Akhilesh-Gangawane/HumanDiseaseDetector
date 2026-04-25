@@ -51,9 +51,9 @@ export default function AnimatedBackground({ fullScreen = true }: AnimatedBackgr
       opacity: number
       color: string
 
-      constructor() {
-        this.x = Math.random() * canvas.width
-        this.y = Math.random() * canvas.height
+      constructor(canvasEl: HTMLCanvasElement) {
+        this.x = Math.random() * canvasEl.width
+        this.y = Math.random() * canvasEl.height
         this.size = Math.random() * 3 + 1
         this.speedX = (Math.random() - 0.5) * 0.3
         this.speedY = (Math.random() - 0.5) * 0.3
@@ -63,7 +63,7 @@ export default function AnimatedBackground({ fullScreen = true }: AnimatedBackgr
         this.color = colors[Math.floor(Math.random() * colors.length)]
       }
 
-      update() {
+      update(canvasEl: HTMLCanvasElement) {
         // subtle attraction/repulsion toward mouse
         const dxm = mouseX - this.x
         const dym = mouseY - this.y
@@ -77,10 +77,10 @@ export default function AnimatedBackground({ fullScreen = true }: AnimatedBackgr
         this.x += this.speedX
         this.y += this.speedY
 
-        if (this.x > canvas.width) this.x = 0
-        if (this.x < 0) this.x = canvas.width
-        if (this.y > canvas.height) this.y = 0
-        if (this.y < 0) this.y = canvas.height
+        if (this.x > canvasEl.width) this.x = 0
+        if (this.x < 0) this.x = canvasEl.width
+        if (this.y > canvasEl.height) this.y = 0
+        if (this.y < 0) this.y = canvasEl.height
       }
 
       draw() {
@@ -98,7 +98,7 @@ export default function AnimatedBackground({ fullScreen = true }: AnimatedBackgr
     const particles: Particle[] = []
     const particleCount = 50
     for (let i = 0; i < particleCount; i++) {
-      particles.push(new Particle())
+      particles.push(new Particle(canvas))
     }
 
     // Animation loop
@@ -108,7 +108,7 @@ export default function AnimatedBackground({ fullScreen = true }: AnimatedBackgr
 
       // Draw particles
       particles.forEach(particle => {
-        particle.update()
+        particle.update(canvas)
         particle.draw()
       })
 

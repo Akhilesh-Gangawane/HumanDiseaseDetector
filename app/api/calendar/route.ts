@@ -1,6 +1,6 @@
 import { getServerSession } from 'next-auth'
 import { NextRequest, NextResponse } from 'next/server'
-import { authOptions } from '../auth/[...nextauth]/route'
+import { authOptions } from '@/lib/authOptions'
 import { createCalendarEvent } from '@/lib/googleCalendar'
 
 /**
@@ -8,12 +8,12 @@ import { createCalendarEvent } from '@/lib/googleCalendar'
  * Creates a Google Calendar event with a Google Meet conference link.
  *
  * Body:
- *   summary        string   — event title
- *   description    string   — event description
- *   date           string   — 'YYYY-MM-DD'
- *   time           string   — 'HH:MM' (24h)
- *   durationMins   number?  — default 30
- *   attendeeEmails string[] — optional list of attendee emails
+ *   summary        string   â€” event title
+ *   description    string   â€” event description
+ *   date           string   â€” 'YYYY-MM-DD'
+ *   time           string   â€” 'HH:MM' (24h)
+ *   durationMins   number?  â€” default 30
+ *   attendeeEmails string[] â€” optional list of attendee emails
  *
  * Returns:
  *   { eventLink, eventId, meetLink }
