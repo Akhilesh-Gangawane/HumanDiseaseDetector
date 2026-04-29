@@ -96,7 +96,13 @@ export default function AppointmentsPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Appointments</h1>
-          <p className="text-gray-600">Manage your daily schedule and consultations</p>
+          <p className="text-gray-600 flex items-center gap-2">
+            Manage your daily schedule and consultations
+            <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium">
+              <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+              Live sync
+            </span>
+          </p>
         </div>
         <button
           type="button"

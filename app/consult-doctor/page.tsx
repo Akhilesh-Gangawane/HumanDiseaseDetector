@@ -152,6 +152,7 @@ export default function ConsultDoctorPage() {
   const [showChatModal, setShowChatModal] = useState(false);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+  const [selectedRealDoctorId, setSelectedRealDoctorId] = useState<string | null>(null);
   const [showDoctorDetails, setShowDoctorDetails] = useState(false);
   
   // Form states
@@ -244,10 +245,11 @@ export default function ConsultDoctorPage() {
     ]);
   };
 
-  const handleBookAppointment = (doctor?: Doctor) => {
+  const handleBookAppointment = (doctor?: Doctor, realDoctorId?: string) => {
     if (doctor) {
       setSelectedDoctor(doctor);
     }
+    setSelectedRealDoctorId(realDoctorId ?? null);
     setShowAppointmentModal(true);
   };
 
@@ -274,85 +276,34 @@ export default function ConsultDoctorPage() {
   const handleSubmitAppointment = async () => {
     if (!appointmentDate || !appointmentTime || !appointmentReason) return;
 
-    // Use our proper meet code generator
-    let generatedMeetLink = '';
-    if (consultationType === 'online') {
-      const seg = (len: number) =>
-        Array.from({ length: len }, () => 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)]).join('');
-      const code = `${seg(3)}-${seg(4)}-${seg(3)}`;
-      generatedMeetLink = `https://meet.google.com/${code}`;
-      setMeetLink(generatedMeetLink);
-    } else {
-      setMeetLink('');
-    }
-
     setBookingSuccess(true);
     setCalendarError('');
     setCalendarEventLink('');
+    setMeetLink(''); // Clear any previous meet link
 
-    // Save appointment to DB — includes meet_link so patient can rejoin anytime
-    await fetch('/api/patient/appointments', {
+    // Save appointment to DB — status will be "Pending" until doctor confirms
+    const response = await fetch('/api/patient/appointments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         doctorName: selectedDoctor?.name ?? null,
-        doctorId: realDoctors.find(d => d.name === selectedDoctor?.name)?.id ?? null,
+        doctorId: selectedRealDoctorId,
         date: appointmentDate,
         time: appointmentTime,
         type: 'Consultation',
         mode: consultationType === 'online' ? 'Online' : 'Offline',
         reason: appointmentReason,
-        meetLink: generatedMeetLink || null,
       }),
-    }).catch(() => { /* non-critical */ });
+    });
 
-    // Add to Google Calendar if signed in
-    if (session) {
-      setCalendarLoading(true);
-      try {
-        // Parse date + time into ISO datetime
-        const [year, month, day] = appointmentDate.split('-').map(Number);
-        // Convert slot time like "10:30 AM" to 24h
-        const parseTime = (t: string) => {
-          const match = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
-          if (match) {
-            let h = parseInt(match[1]);
-            const m = parseInt(match[2]);
-            const period = match[3].toUpperCase();
-            if (period === 'PM' && h !== 12) h += 12;
-            if (period === 'AM' && h === 12) h = 0;
-            return { h, m };
-          }
-          // fallback for HH:MM format
-          const [h, m] = t.split(':').map(Number);
-          return { h, m };
-        };
-        const { h, m } = parseTime(appointmentTime);
-        const start = new Date(year, month - 1, day, h, m);
-        const end = new Date(start.getTime() + 30 * 60 * 1000); // 30 min slot
-
-        const res = await fetch('/api/calendar', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            summary: `Appointment with ${selectedDoctor?.name ?? 'Doctor'} — ${selectedDoctor?.specialty ?? ''}`,
-            description: `Reason: ${appointmentReason}\nType: ${consultationType === 'online' ? 'Online Video Consultation' : 'In-Person Visit'}`,
-            startDateTime: start.toISOString(),
-            endDateTime: end.toISOString(),
-            meetLink: generatedMeetLink,
-          }),
-        });
-        const data = await res.json();
-        if (res.ok) {
-          setCalendarEventLink(data.eventLink);
-        } else {
-          setCalendarError(data.error || 'Could not add to Google Calendar');
-        }
-      } catch {
-        setCalendarError('Could not add to Google Calendar');
-      } finally {
-        setCalendarLoading(false);
+    if (response.ok) {
+      const data = await response.json();
+      // Store calendar event link if created
+      if (data.calendarEventLink) {
+        setCalendarEventLink(data.calendarEventLink);
       }
+    } else {
+      setCalendarError('Failed to book appointment. Please try again.');
     }
 
     setTimeout(() => {
@@ -365,6 +316,7 @@ export default function ConsultDoctorPage() {
       setCalendarEventLink('');
       setCalendarError('');
       setSelectedDoctor(null);
+      setSelectedRealDoctorId(null);
     }, 10000);
   };
 
@@ -576,7 +528,7 @@ export default function ConsultDoctorPage() {
                     experience: doctor.experience ?? '', fee: 0, nextSlot: '',
                     qualifications: doctor.qualifications ?? '',
                     hospital: '', languages: [], about: '', slots: [], tags: [], reviewList: [],
-                  })}
+                  }, doctor.id)}
                 >
                   <div className="flex items-start space-x-4">
                     {/* Avatar */}
@@ -621,7 +573,7 @@ export default function ConsultDoctorPage() {
                         experience: doctor.experience ?? '', fee: 0, nextSlot: '',
                         qualifications: doctor.qualifications ?? '',
                         hospital: '', languages: [], about: '', slots: [], tags: [], reviewList: [],
-                      });
+                      }, doctor.id);
                     }}
                     className="w-full mt-4 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
                   >
@@ -888,9 +840,9 @@ export default function ConsultDoctorPage() {
                 <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <CheckCircle2 className="w-10 h-10 text-green-600" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-800 mb-2">Booking Confirmed!</h3>
-                <p className="text-gray-600 mb-4">Your appointment has been successfully scheduled</p>
-                <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-left max-w-md mx-auto space-y-2">
+                <h3 className="text-2xl font-bold text-gray-800 mb-2">Appointment Request Sent!</h3>
+                <p className="text-gray-600 mb-4">Your appointment request has been sent to the doctor</p>
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-left max-w-md mx-auto space-y-2">
                   {selectedDoctor && (
                     <p className="text-sm text-gray-700">
                       <span className="font-semibold">Doctor:</span> {selectedDoctor.name}
@@ -905,34 +857,24 @@ export default function ConsultDoctorPage() {
                   <p className="text-sm text-gray-700">
                     <span className="font-semibold">Type:</span> {consultationType === 'online' ? 'Online (Video)' : 'In-Person'}
                   </p>
-                  {consultationType === 'online' && meetLink && (
-                    <div className="mt-3 pt-3 border-t border-green-200">
-                      <p className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1">
-                        <Video className="w-4 h-4 text-blue-600" /> Meet Link
-                      </p>
-                      <a
-                        href={meetLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors w-full justify-center"
-                      >
-                        <Link2 className="w-4 h-4" />
-                        Join Google Meet
-                      </a>
-                      <p className="text-xs text-gray-500 mt-2 break-all text-center">{meetLink}</p>
+                  
+                  {/* Status message */}
+                  <div className="mt-3 pt-3 border-t border-blue-200">
+                    <div className="flex items-start gap-2 text-sm text-blue-700 bg-blue-100 rounded-lg p-3">
+                      <Clock className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold">Waiting for Doctor Confirmation</p>
+                        <p className="text-xs text-blue-600 mt-1">
+                          The doctor will review your request and confirm the appointment. 
+                          {consultationType === 'online' && ' You will receive the video call link once confirmed.'}
+                        </p>
+                      </div>
                     </div>
-                  )}
+                  </div>
 
                   {/* Google Calendar section */}
-                  <div className="mt-3 pt-3 border-t border-green-200">
-                    {!session ? (
-                      <p className="text-xs text-gray-500 text-center">Sign in with Google to auto-add this to your calendar.</p>
-                    ) : calendarLoading ? (
-                      <div className="flex items-center justify-center gap-2 text-sm text-gray-500 py-2">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Adding to Google Calendar...
-                      </div>
-                    ) : calendarEventLink ? (
+                  {calendarEventLink && (
+                    <div className="mt-3 pt-3 border-t border-blue-200">
                       <a
                         href={calendarEventLink}
                         target="_blank"
@@ -942,10 +884,12 @@ export default function ConsultDoctorPage() {
                         <CalendarCheck className="w-4 h-4" />
                         View in Google Calendar
                       </a>
-                    ) : calendarError ? (
-                      <p className="text-xs text-red-500 text-center">{calendarError}</p>
-                    ) : null}
-                  </div>
+                    </div>
+                  )}
+                  
+                  {calendarError && (
+                    <p className="text-xs text-amber-600 text-center mt-2">{calendarError}</p>
+                  )}
                 </div>
               </div>
             )}

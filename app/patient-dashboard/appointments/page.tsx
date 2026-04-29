@@ -1,43 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { Calendar, Clock, Video, ArrowLeft, Loader2, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import PatientNavbar from '@/components/patient/PatientNavbar';
 import Footer from '@/components/patient/Footer';
 import NeuralNetworkContainer from '@/components/ui/NeuralNetworkContainer';
 import CalendarEventBadge from '@/components/ui/CalendarEventBadge';
 import { useRouter } from 'next/navigation';
-
-interface Appointment {
-  id: string;
-  doctorName: string;
-  date: string;
-  time: string;
-  type: string;
-  mode: 'Online' | 'Offline';
-  status: 'Confirmed' | 'Pending' | 'Cancelled';
-  reason: string;
-  initiatedBy: string;
-  meetLink: string | null;
-  calendarEventId: string | null;
-  calendarEventLink: string | null;
-}
+import { usePatientState } from '@/components/patient/PatientStateContext';
 
 export default function PatientAppointmentsPage() {
   const router = useRouter();
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch('/api/patient/appointments')
-      .then(r => r.json())
-      .then(d => setAppointments(d.appointments ?? []))
-      .finally(() => setLoading(false));
-  }, []);
+  const { appointments, setAppointments, loadingApts: loading } = usePatientState();
 
   const statusIcon = (s: string) => {
     if (s === 'Confirmed') return <CheckCircle className="w-4 h-4 text-green-500" />;
-    if (s === 'Cancelled') return <XCircle className="w-4 h-4 text-red-500" />;
+    if (s === 'Cancelled') return <XCircle     className="w-4 h-4 text-red-500" />;
     return <AlertCircle className="w-4 h-4 text-yellow-500" />;
   };
 
@@ -48,7 +25,7 @@ export default function PatientAppointmentsPage() {
   };
 
   /** Add a calendar event for a specific appointment */
-  const makeCalendarAdder = (apt: Appointment) => async (): Promise<string | null> => {
+  const makeCalendarAdder = (apt: typeof appointments[0]) => async (): Promise<string | null> => {
     const res = await fetch('/api/calendar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -85,11 +62,18 @@ export default function PatientAppointmentsPage() {
           <span className="text-gray-700 font-medium group-hover:text-blue-600 transition-colors">Back to Dashboard</span>
         </button>
 
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text text-transparent mb-2">
-          My Appointments
-        </h1>
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text text-transparent">
+            My Appointments
+          </h1>
+          {/* Live sync indicator */}
+          <span className="inline-flex items-center gap-1.5 text-xs text-green-600 font-medium px-3 py-1 bg-green-50 rounded-full border border-green-200">
+            <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+            Live sync
+          </span>
+        </div>
         <p className="text-gray-500 mb-8">
-          All your booked consultations. Confirmed Online appointments include a Google Meet link.
+          Status updates appear instantly when your doctor confirms or cancels.
         </p>
 
         {loading ? (
@@ -148,7 +132,7 @@ export default function PatientAppointmentsPage() {
 
                     {/* Action row */}
                     <div className="flex items-center gap-3 mt-3 flex-wrap">
-                      {/* Google Meet join button */}
+                      {/* Google Meet join button - ONLY show when confirmed */}
                       {apt.status === 'Confirmed' && apt.mode === 'Online' && apt.meetLink && (
                         <a
                           href={apt.meetLink}
@@ -161,11 +145,18 @@ export default function PatientAppointmentsPage() {
                         </a>
                       )}
 
-                      {apt.status === 'Confirmed' && apt.mode === 'Online' && !apt.meetLink && (
-                        <span className="text-xs text-gray-400 italic">Meet link pending…</span>
+                      {/* Pending status message */}
+                      {apt.status === 'Pending' && apt.mode === 'Online' && (
+                        <span className="text-xs text-amber-600 font-medium bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200">
+                          ⏳ Waiting for doctor confirmation
+                        </span>
                       )}
 
-                      {/* Calendar badge — show if confirmed or pending */}
+                      {apt.status === 'Confirmed' && apt.mode === 'Online' && !apt.meetLink && (
+                        <span className="text-xs text-gray-400 italic">Meet link will be available shortly…</span>
+                      )}
+
+                      {/* Calendar badge */}
                       {apt.status !== 'Cancelled' && (
                         <CalendarEventBadge
                           eventLink={apt.calendarEventLink}

@@ -10,8 +10,7 @@ const nextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   experimental: {
-    optimizeCss: true,
-    optimizePackageImports: ['lucide-react', 'framer-motion'],
+    optimizePackageImports: ['lucide-react', 'framer-motion', 'recharts', 'three', '@react-three/fiber', '@react-three/drei'],
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',

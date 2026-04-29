@@ -66,10 +66,11 @@ export async function POST(req: NextRequest) {
   if (!patient.patientRowId)
     return NextResponse.json({ error: 'Patient profile not found. Please complete your profile first.' }, { status: 400 })
 
-  // Try to get doctor email for calendar invite
+  // Try to get doctor email for calendar invite and resolve doctors.id
   let doctorEmail: string | null = null
   let doctorGoogleAccessToken: string | null = null
   let doctorGoogleRefreshToken: string | null = null
+  let doctorRowId: string | null = null // doctors.id for FK
   if (doctorId) {
     const { data: du } = await supabaseServer
       .from('users')
@@ -79,6 +80,14 @@ export async function POST(req: NextRequest) {
     doctorEmail              = du?.email              ?? null
     doctorGoogleAccessToken  = du?.google_access_token  ?? null
     doctorGoogleRefreshToken = du?.google_refresh_token ?? null
+
+    // Resolve doctors.id from users.id
+    const { data: doctorRow } = await supabaseServer
+      .from('doctors')
+      .select('id')
+      .eq('user_id', doctorId)
+      .single()
+    doctorRowId = doctorRow?.id ?? null
   }
 
   let calendarEventId: string | null = null
@@ -134,7 +143,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await supabaseServer
     .from('appointments')
     .insert({
-      doctor_id:    doctorId ?? null,
+      doctor_id:    doctorRowId ?? null,  // Use doctors.id (FK)
       doctor_name:  doctorName ?? null,
       patient_id:   patient.patientRowId,
       patient_name: patient.full_name ?? session.user.email,
@@ -155,7 +164,7 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Notify the doctor
+  // Notify the doctor - CRITICAL: Use users.id not doctors.id
   if (doctorId) {
     const parts: string[] = [
       `${patient.full_name ?? 'A patient'} has requested a ${type ?? 'Consultation'} on ${date} at ${time} (${mode ?? 'Online'}).`,
@@ -163,12 +172,17 @@ export async function POST(req: NextRequest) {
     if (reason) parts.push(`Reason: ${reason}`)
     if (doctorCalendarEventLink) parts.push(`Calendar event added to your Google Calendar: ${doctorCalendarEventLink}`)
 
-    await supabaseServer.from('doctor_notifications').insert({
+    // doctorId here is users.id, which is what doctor_notifications.doctor_id expects
+    const { error: notifError } = await supabaseServer.from('doctor_notifications').insert({
       doctor_id: doctorId,
       title: 'New Appointment Request',
       message: parts.join(' '),
       type: 'appointment',
     })
+
+    if (notifError) {
+      console.error('[notification] Failed to notify doctor:', notifError)
+    }
   }
 
   return NextResponse.json({

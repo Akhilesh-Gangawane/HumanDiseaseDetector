@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { PatientStateProvider } from '@/components/patient/PatientStateContext';
 
 export const metadata: Metadata = {
   title: 'Patient Dashboard',
@@ -6,5 +7,9 @@ export const metadata: Metadata = {
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return (
+    <PatientStateProvider>
+      {children}
+    </PatientStateProvider>
+  );
 }

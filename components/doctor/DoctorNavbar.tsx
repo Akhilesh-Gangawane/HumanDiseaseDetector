@@ -63,7 +63,9 @@ export default function DoctorNavbar({ activeTab, setActiveTab }: { activeTab: s
                         <button type="button" onClick={() => handleNavClick('notifications')} className={`relative p-2 rounded-lg transition-colors ${activeTab === 'notifications' ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-100 text-gray-700'}`} aria-label="Notifications">
                             <Bell className="w-5 h-5" />
                             {unreadCount > 0 && (
-                                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                </span>
                             )}
                         </button>
 

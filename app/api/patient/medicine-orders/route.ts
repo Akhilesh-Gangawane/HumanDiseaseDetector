@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
       total,
       delivery_address: address ?? null,
       payment_method: paymentMethod ?? null,
-      status: 'Confirmed',
+      status: 'pending',
     })
     .select()
     .single()
