@@ -61,3 +61,44 @@ export async function GET() {
 
   return NextResponse.json({ orders: data ?? [] })
 }
+
+// DELETE /api/patient/medicine-orders — delete a medicine order
+export async function DELETE(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const patient = await getPatientRow(session.user.email)
+  if (!patient) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const { searchParams } = new URL(req.url)
+  const orderId = searchParams.get('id')
+
+  if (!orderId) return NextResponse.json({ error: 'Order ID required' }, { status: 400 })
+
+  // Verify the order belongs to this patient
+  const { data: order } = await supabaseServer
+    .from('medicine_orders')
+    .select('id, status, patient_id')
+    .eq('id', orderId)
+    .eq('patient_id', patient.id)
+    .single()
+
+  if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+
+  // Only allow deletion of pending orders
+  if (order.status !== 'pending') {
+    return NextResponse.json({ 
+      error: 'Only pending orders can be deleted' 
+    }, { status: 400 })
+  }
+
+  const { error } = await supabaseServer
+    .from('medicine_orders')
+    .delete()
+    .eq('id', orderId)
+    .eq('patient_id', patient.id)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  return NextResponse.json({ success: true, message: 'Order deleted successfully' })
+}

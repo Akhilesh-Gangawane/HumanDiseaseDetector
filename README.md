@@ -44,6 +44,7 @@
 
 - **669 Disease Classifications** with 80% accuracy
 - **130+ Symptoms** in searchable database
+- **45+ Medicines** from FDA API + Indian catalog
 - **Real-time Notifications** for both patients and doctors
 - **Google Calendar Integration** for appointments
 - **Google Meet Integration** for online consultations
@@ -71,11 +72,13 @@
 - Calendar integration for reminders
 
 #### Medicine Ordering
-- Browse 1000+ medicines with detailed information
+- Browse 45+ medicines with FDA-verified information
+- Real-time data from FDA API
 - Prescription upload and verification
 - Order tracking with delivery estimates
 - Secure payment integration
 - Prescription refill reminders
+- Auto-sync from FDA database
 
 #### Pathology Services
 - Book lab tests from home
@@ -89,6 +92,7 @@
 - Medical records storage
 - Appointment history
 - Order tracking dashboard
+- Delete pending orders
 - Real-time notifications
 
 ### 👨‍⚕️ For Doctors
@@ -191,6 +195,7 @@ Supabase                - PostgreSQL database
 Supabase Realtime       - WebSocket subscriptions
 Google Calendar API     - Calendar integration
 Google Meet API         - Video consultation
+FDA API                 - Medicine data (openFDA)
 ```
 
 ### ML/AI
@@ -625,6 +630,23 @@ Get health diary entries
 #### `POST /api/patient/diary`
 Create diary entry
 
+#### `DELETE /api/patient/medicine-orders?id={orderId}`
+Delete a pending medicine order
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Order deleted successfully"
+}
+```
+
+#### `DELETE /api/patient/lab-bookings?id={bookingId}`
+Delete a pending lab booking
+
+#### `DELETE /api/patient/appointments?id={appointmentId}`
+Cancel a pending appointment (updates status to 'Cancelled')
+
 ### Doctor Endpoints
 
 #### `GET /api/doctor/appointments`
@@ -669,7 +691,41 @@ Get all verified doctors
 - `search` - Search by name
 
 #### `GET /api/public/medicines`
-Get medicine catalog
+Get medicine catalog (auto-syncs from FDA if empty)
+
+**Response:**
+```json
+{
+  "medicines": [
+    {
+      "id": "uuid",
+      "name": "Aspirin",
+      "category": "Pain Relief",
+      "price": 25.00,
+      "manufacturer": "Bayer",
+      "description": "Pain reliever and fever reducer",
+      "rating": 4.5,
+      "reviews_count": 1250,
+      "in_stock": true,
+      "requires_prescription": false
+    }
+  ]
+}
+```
+
+#### `POST /api/medicines/sync`
+Sync medicines from FDA API (public endpoint)
+
+**Response:**
+```json
+{
+  "success": true,
+  "count": 45,
+  "fdaCount": 25,
+  "indianCount": 20,
+  "message": "Medicines synced successfully"
+}
+```
 
 #### `GET /api/public/lab-tests`
 Get available lab tests
@@ -698,6 +754,54 @@ Get disease prediction from symptoms
   "recommendations": ["Rest", "Hydration"]
 }
 ```
+
+---
+
+## 💊 Medicine System
+
+### FDA API Integration
+
+The platform integrates with the **openFDA API** to provide real, verified medicine information.
+
+#### Features:
+- **Real-time FDA Data**: Fetches medicine information from official FDA database
+- **Auto-Sync**: Automatically syncs medicines when database is empty
+- **Hybrid Catalog**: Combines FDA medicines with Indian medicines
+- **Smart Categorization**: Auto-categorizes based on product type and generic name
+- **No Images**: Clean, professional design without image dependencies
+
+#### How It Works:
+
+```
+1. Patient visits /buy-medicine
+   ↓
+2. System checks database
+   ↓
+3. If empty, auto-syncs from FDA API
+   ↓
+4. Fetches 25+ medicines from FDA
+   ↓
+5. Adds 20+ Indian medicines
+   ↓
+6. Total: 45+ medicines ready
+```
+
+#### FDA Medicines Include:
+- Aspirin, Ibuprofen, Acetaminophen
+- Amoxicillin, Azithromycin
+- Metformin, Atorvastatin, Lisinopril
+- Omeprazole, Losartan, Amlodipine
+- And 15+ more verified medicines
+
+#### Indian Medicines Include:
+- Paracetamol (500mg, 650mg)
+- Diclofenac, Ciprofloxacin
+- Glimepiride, Insulin Glargine
+- Vitamins (D3, B12, Omega-3)
+- Inhalers, Creams, and more
+
+#### Testing:
+Visit `/test-medicines` to test the sync functionality and view medicine data.
 
 ---
 

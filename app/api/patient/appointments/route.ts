@@ -191,3 +191,64 @@ export async function POST(req: NextRequest) {
     doctorCalendarEventLink,
   })
 }
+
+// DELETE /api/patient/appointments — delete/cancel an appointment
+export async function DELETE(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const patient = await getPatientRow(session.user.email)
+  if (!patient || !patient.patientRowId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const { searchParams } = new URL(req.url)
+  const appointmentId = searchParams.get('id')
+
+  if (!appointmentId) return NextResponse.json({ error: 'Appointment ID required' }, { status: 400 })
+
+  // Verify the appointment belongs to this patient
+  const { data: appointment } = await supabaseServer
+    .from('appointments')
+    .select('id, status, patient_id, doctor_id')
+    .eq('id', appointmentId)
+    .eq('patient_id', patient.patientRowId)
+    .single()
+
+  if (!appointment) return NextResponse.json({ error: 'Appointment not found' }, { status: 404 })
+
+  // Only allow deletion of pending appointments
+  if (appointment.status !== 'Pending') {
+    return NextResponse.json({ 
+      error: 'Only pending appointments can be cancelled' 
+    }, { status: 400 })
+  }
+
+  // Update status to Cancelled instead of deleting (better for records)
+  const { error } = await supabaseServer
+    .from('appointments')
+    .update({ status: 'Cancelled' })
+    .eq('id', appointmentId)
+    .eq('patient_id', patient.patientRowId)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Notify the doctor about cancellation
+  if (appointment.doctor_id) {
+    // Get doctor's user_id from doctors table
+    const { data: doctorRow } = await supabaseServer
+      .from('doctors')
+      .select('user_id')
+      .eq('id', appointment.doctor_id)
+      .single()
+
+    if (doctorRow?.user_id) {
+      await supabaseServer.from('doctor_notifications').insert({
+        doctor_id: doctorRow.user_id,
+        title: 'Appointment Cancelled',
+        message: `${patient.full_name ?? 'A patient'} has cancelled their appointment.`,
+        type: 'appointment',
+      })
+    }
+  }
+
+  return NextResponse.json({ success: true, message: 'Appointment cancelled successfully' })
+}

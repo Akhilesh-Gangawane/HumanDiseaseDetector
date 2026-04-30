@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Package, FlaskConical, Stethoscope, Calendar, MapPin, Clock, Download, Eye, X, CheckCircle2, Truck, Loader2, AlertCircle, Video } from 'lucide-react';
+import { Package, FlaskConical, Stethoscope, Calendar, MapPin, Clock, Download, Eye, X, CheckCircle2, Truck, Loader2, AlertCircle, Video, Trash2 } from 'lucide-react';
 import { ScrollLock } from '@/hooks/useScrollLock';
+import Swal from 'sweetalert2';
 
 interface OrderItem {
   name: string;
@@ -34,13 +35,19 @@ export default function OrdersBookings() {
   const [selectedTab, setSelectedTab] = useState<'all' | 'medicine' | 'pathology' | 'consultation'>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchOrders = () => {
+    setLoading(true);
     fetch('/api/public/orders')
       .then(r => r.json())
       .then(d => setOrders(d.orders ?? []))
       .catch(() => {})
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchOrders();
   }, []);
 
   const filteredOrders = selectedTab === 'all'
@@ -108,6 +115,82 @@ export default function OrdersBookings() {
         return 'bg-blue-100 text-blue-700';
       default:
         return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  const handleDeleteOrder = async (order: Order) => {
+    // Only allow deletion of pending orders
+    if (order.status !== 'pending') {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Cannot Delete',
+        text: 'Only pending orders can be deleted',
+        confirmButtonColor: '#3b82f6',
+      });
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: 'Delete Order?',
+      text: `Are you sure you want to delete this ${order.type} order? This action cannot be undone.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, delete it',
+      cancelButtonText: 'Cancel',
+    });
+
+    if (!result.isConfirmed) return;
+
+    setDeletingOrderId(order.id);
+
+    try {
+      let endpoint = '';
+      switch (order.type) {
+        case 'medicine':
+          endpoint = `/api/patient/medicine-orders?id=${order.id}`;
+          break;
+        case 'pathology':
+          endpoint = `/api/patient/lab-bookings?id=${order.id}`;
+          break;
+        case 'consultation':
+          endpoint = `/api/patient/appointments?id=${order.id}`;
+          break;
+      }
+
+      const response = await fetch(endpoint, { method: 'DELETE' });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete order');
+      }
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'Deleted!',
+        text: data.message || 'Order has been deleted successfully',
+        confirmButtonColor: '#3b82f6',
+        timer: 2000,
+      });
+
+      // Refresh orders list
+      fetchOrders();
+      
+      // Close modal if it's open
+      if (showDetails && selectedOrder?.id === order.id) {
+        setShowDetails(false);
+        setSelectedOrder(null);
+      }
+    } catch (error) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error instanceof Error ? error.message : 'Failed to delete order',
+        confirmButtonColor: '#3b82f6',
+      });
+    } finally {
+      setDeletingOrderId(null);
     }
   };
 
@@ -237,17 +320,37 @@ export default function OrdersBookings() {
                       <p className="text-xs text-gray-500">Total Amount</p>
                       <p className="text-xl font-bold text-gray-800">₹{order.total.toFixed(2)}</p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedOrder(order);
-                        setShowDetails(true);
-                      }}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center space-x-2"
-                    >
-                      <Eye className="w-4 h-4" />
-                      <span>View Details</span>
-                    </button>
+                    <div className="flex items-center space-x-2">
+                      {order.status === 'pending' && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteOrder(order);
+                          }}
+                          disabled={deletingOrderId === order.id}
+                          className="px-3 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Delete order"
+                        >
+                          {deletingOrderId === order.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          setShowDetails(true);
+                        }}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center space-x-2"
+                      >
+                        <Eye className="w-4 h-4" />
+                        <span>View Details</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -371,10 +474,32 @@ export default function OrdersBookings() {
 
               {/* Action Buttons */}
               <div className="grid grid-cols-2 gap-4">
+                {selectedOrder.status === 'pending' && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteOrder(selectedOrder)}
+                    disabled={deletingOrderId === selectedOrder.id}
+                    className="px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {deletingOrderId === selectedOrder.id ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Deleting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-5 h-5" />
+                        <span>Delete Order</span>
+                      </>
+                    )}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowDetails(false)}
-                  className="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-colors"
+                  className={`px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-colors ${
+                    selectedOrder.status !== 'pending' ? 'col-span-2' : ''
+                  }`}
                 >
                   Close
                 </button>

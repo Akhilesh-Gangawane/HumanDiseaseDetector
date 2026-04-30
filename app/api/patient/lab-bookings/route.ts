@@ -107,3 +107,51 @@ export async function GET() {
 
   return NextResponse.json({ bookings: data ?? [] })
 }
+
+// DELETE /api/patient/lab-bookings — delete a lab booking
+export async function DELETE(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const patient = await getPatientRow(session.user.email)
+  if (!patient || !patient.patientId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const { searchParams } = new URL(req.url)
+  const bookingId = searchParams.get('id')
+
+  if (!bookingId) return NextResponse.json({ error: 'Booking ID required' }, { status: 400 })
+
+  // Verify the booking belongs to this patient
+  const { data: booking } = await supabaseServer
+    .from('pathology_bookings')
+    .select('id, status, patient_id')
+    .eq('id', bookingId)
+    .eq('patient_id', patient.patientId)
+    .single()
+
+  if (!booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
+
+  // Only allow deletion of pending bookings
+  if (booking.status !== 'pending') {
+    return NextResponse.json({ 
+      error: 'Only pending bookings can be deleted' 
+    }, { status: 400 })
+  }
+
+  // Delete booking items first (foreign key constraint)
+  await supabaseServer
+    .from('pathology_booking_items')
+    .delete()
+    .eq('booking_id', bookingId)
+
+  // Delete the booking
+  const { error } = await supabaseServer
+    .from('pathology_bookings')
+    .delete()
+    .eq('id', bookingId)
+    .eq('patient_id', patient.patientId)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  return NextResponse.json({ success: true, message: 'Booking deleted successfully' })
+}
