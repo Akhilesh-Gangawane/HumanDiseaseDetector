@@ -168,6 +168,19 @@ export default function ConsultDoctorPage() {
   const [chatMessages, setChatMessages] = useState<Array<{sender: 'user' | 'doctor', text: string}>>([]);
   const [bookingSuccess, setBookingSuccess] = useState(false);
 
+  // Close modals on Escape key
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showChatModal) setShowChatModal(false);
+        if (showAppointmentModal) setShowAppointmentModal(false);
+        if (showDoctorDetails) setShowDoctorDetails(false);
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showChatModal, showAppointmentModal, showDoctorDetails]);
+
   // Calendar state
   const today = new Date();
   const [calendarMonth, setCalendarMonth] = useState(today.getMonth());
@@ -588,9 +601,15 @@ export default function ConsultDoctorPage() {
 
       {/* Chat Modal */}
       {showChatModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm animate-fade-in"
+          onClick={() => setShowChatModal(false)}
+        >
           <ScrollLock />
-          <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl flex flex-col h-[600px]">
+          <div
+            className="relative w-full sm:max-w-2xl bg-white rounded-t-2xl sm:rounded-3xl shadow-2xl flex flex-col h-[85dvh] sm:h-[600px] max-h-[90vh]"
+            onClick={e => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <div className="flex items-center space-x-4">
                 <div className="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center">
@@ -655,9 +674,19 @@ export default function ConsultDoctorPage() {
 
       {/* Appointment Booking Modal */}
       {showAppointmentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in"
+          onClick={() => {
+            setShowAppointmentModal(false);
+            setSelectedDoctor(null);
+            setBookingSuccess(false);
+          }}
+        >
           <ScrollLock />
-          <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto">
+          <div
+            className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
             <button
               onClick={() => {
                 setShowAppointmentModal(false);
@@ -899,9 +928,18 @@ export default function ConsultDoctorPage() {
 
       {/* Doctor Details Modal */}
       {showDoctorDetails && selectedDoctor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in"
+          onClick={() => {
+            setShowDoctorDetails(false);
+            setSelectedDoctor(null);
+          }}
+        >
           <ScrollLock />
-          <div className="relative w-full max-w-3xl bg-white rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto">
+          <div
+            className="relative w-full max-w-3xl bg-white rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
             <button
               onClick={() => {
                 setShowDoctorDetails(false);

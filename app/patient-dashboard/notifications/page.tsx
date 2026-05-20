@@ -109,7 +109,7 @@ export default function PatientNotificationsPage() {
                     <h3 className={`font-semibold ${notif.read ? 'text-gray-700' : 'text-gray-900'}`}>
                       {notif.title}
                     </h3>
-                    <p className="text-gray-600 mt-1 text-sm">{notif.message}</p>
+                    <p className="text-gray-600 mt-1 text-sm whitespace-pre-line">{notif.message}</p>
                     <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
                       <Clock className="w-3.5 h-3.5" />
                       {notif.time}

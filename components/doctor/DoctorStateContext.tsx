@@ -192,45 +192,28 @@ export function DoctorStateProvider({ children }: { children: ReactNode }) {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [patientsRes, appointmentsRes, predictionsRes, testsRes, vitalsRes, notifsRes, meRes] = await Promise.all([
+      const responses = await Promise.all([
         fetch('/api/doctor/patients'),
         fetch('/api/doctor/appointments'),
         fetch('/api/doctor/predictions'),
         fetch('/api/doctor/lab-tests'),
         fetch('/api/doctor/vitals'),
         fetch('/api/doctor/notifications'),
-        fetch('/api/user/profile'),   // returns { userId, doctorRowId, ... }
+        fetch('/api/user/profile'),
       ]);
 
-      if (patientsRes.ok) {
-        const d = await patientsRes.json();
-        setPatients(d.patients ?? []);
-      }
-      if (appointmentsRes.ok) {
-        const d = await appointmentsRes.json();
-        setAppointments(d.appointments ?? []);
-      }
-      if (predictionsRes.ok) {
-        const d = await predictionsRes.json();
-        setPredictions(d.predictions ?? []);
-      }
-      if (testsRes.ok) {
-        const d = await testsRes.json();
-        setTestRequests(d.tests ?? []);
-      }
-      if (vitalsRes.ok) {
-        const d = await vitalsRes.json();
-        setMetrics(d.metrics ?? []);
-      }
-      if (notifsRes.ok) {
-        const d = await notifsRes.json();
-        setNotifications(d.notifications ?? []);
-      }
-      if (meRes.ok) {
-        const d = await meRes.json();
-        if (d.userId)     setDoctorUserId(d.userId);
-        if (d.doctorRowId) setDoctorRowId(d.doctorRowId);
-      }
+      const [pData, aData, prData, tData, vData, nData, meData] = await Promise.all(
+        responses.map(res => res.ok ? res.json() : Promise.resolve({}))
+      );
+
+      if (pData.patients) setPatients(pData.patients);
+      if (aData.appointments) setAppointments(aData.appointments);
+      if (prData.predictions) setPredictions(prData.predictions);
+      if (tData.tests) setTestRequests(tData.tests);
+      if (vData.metrics) setMetrics(vData.metrics);
+      if (nData.notifications) setNotifications(nData.notifications);
+      if (meData.userId) setDoctorUserId(meData.userId);
+      if (meData.doctorRowId) setDoctorRowId(meData.doctorRowId);
     } catch (err) {
       console.error('Failed to load doctor data:', err);
     } finally {

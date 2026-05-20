@@ -5,12 +5,33 @@ import PatientNavbar from '@/components/patient/PatientNavbar';
 import Footer from '@/components/patient/Footer';
 import NeuralNetworkContainer from '@/components/ui/NeuralNetworkContainer';
 import CalendarEventBadge from '@/components/ui/CalendarEventBadge';
+import AppointmentDetailCard from '@/components/patient/AppointmentDetailCard';
 import { useRouter } from 'next/navigation';
 import { usePatientState } from '@/components/patient/PatientStateContext';
+import { useState, useEffect } from 'react';
 
 export default function PatientAppointmentsPage() {
   const router = useRouter();
   const { appointments, setAppointments, loadingApts: loading } = usePatientState();
+  const [doctorsInfo, setDoctorsInfo] = useState<Record<string, any>>({});
+
+  // Fetch doctor details for all appointments
+  useEffect(() => {
+    async function fetchDoctorDetails() {
+      const response = await fetch('/api/public/doctors');
+      if (response.ok) {
+        const data = await response.json();
+        const doctorMap: Record<string, any> = {};
+        data.doctors?.forEach((doc: any) => {
+          doctorMap[doc.name] = doc;
+        });
+        setDoctorsInfo(doctorMap);
+      }
+    }
+    if (appointments.length > 0) {
+      fetchDoctorDetails();
+    }
+  }, [appointments.length]);
 
   const statusIcon = (s: string) => {
     if (s === 'Confirmed') return <CheckCircle className="w-4 h-4 text-green-500" />;
@@ -94,81 +115,127 @@ export default function PatientAppointmentsPage() {
             </button>
           </div>
         ) : (
-          <div className="space-y-4">
-            {appointments.map(apt => (
-              <div key={apt.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-all">
-                <div className="flex items-start justify-between gap-4 flex-wrap">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2 flex-wrap">
-                      <h3 className="text-lg font-bold text-gray-900">{apt.doctorName}</h3>
-                      <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusColor(apt.status)}`}>
-                        {statusIcon(apt.status)} {apt.status}
-                      </span>
-                      {apt.mode === 'Online' && (
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
-                          Online
+          <div className="space-y-6">
+            {appointments.map(apt => {
+              const doctorInfo = doctorsInfo[apt.doctorName];
+              const isConfirmed = apt.status === 'Confirmed';
+              
+              // Show detailed card for confirmed appointments
+              if (isConfirmed) {
+                return (
+                  <AppointmentDetailCard
+                    key={apt.id}
+                    appointment={apt}
+                    doctorInfo={doctorInfo}
+                  />
+                );
+              }
+              
+              // Show compact card for pending/cancelled appointments
+              return (
+                <div key={apt.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-all group">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-3 flex-wrap">
+                        <h3 className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+                          Dr. {apt.doctorName}
+                        </h3>
+                        <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${statusColor(apt.status)}`}>
+                          {statusIcon(apt.status)} {apt.status}
                         </span>
-                      )}
-                      {apt.initiatedBy === 'doctor' && (
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">
-                          Doctor-Scheduled
-                        </span>
-                      )}
-                    </div>
+                        {apt.mode === 'Online' ? (
+                          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700">
+                            <Video className="w-3.5 h-3.5" /> Video Call
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-700">
+                            <Clock className="w-3.5 h-3.5" /> In-Person
+                          </span>
+                        )}
+                      </div>
 
-                    <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
-                      <span className="flex items-center gap-1.5">
-                        <Calendar className="w-4 h-4" /> {apt.date}
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <Clock className="w-4 h-4" /> {apt.time}
-                      </span>
-                      <span className="text-gray-400">{apt.type}</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                      <div className="flex items-center gap-3 text-gray-600 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                        <Calendar className="w-5 h-5 text-blue-500" />
+                        <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase leading-none mb-1">Date</p>
+                          <p className="font-semibold text-sm">{new Date(apt.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 text-gray-600 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                        <Clock className="w-5 h-5 text-teal-500" />
+                        <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase leading-none mb-1">Time</p>
+                          <p className="font-semibold text-sm">
+                            {(() => {
+                              try {
+                                const [h, m] = apt.time.split(':');
+                                const hour = parseInt(h);
+                                const ampm = hour >= 12 ? 'PM' : 'AM';
+                                const displayHour = hour % 12 || 12;
+                                return `${displayHour}:${m} ${ampm}`;
+                              } catch (e) { return apt.time; }
+                            })()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 text-gray-600 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                        <AlertCircle className="w-5 h-5 text-purple-500" />
+                        <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase leading-none mb-1">Type</p>
+                          <p className="font-semibold text-sm">{apt.type}</p>
+                        </div>
+                      </div>
                     </div>
 
                     {apt.reason && (
-                      <p className="text-sm text-gray-500 mt-2 italic">&quot;{apt.reason}&quot;</p>
+                      <div className="mb-4 p-3 bg-blue-50/50 rounded-xl border border-blue-100/50">
+                        <p className="text-xs font-bold text-blue-400 uppercase mb-1">Reason for visit</p>
+                        <p className="text-sm text-gray-700 italic">&quot;{apt.reason}&quot;</p>
+                      </div>
                     )}
 
-                    {/* Action row */}
-                    <div className="flex items-center gap-3 mt-3 flex-wrap">
-                      {/* Google Meet join button - ONLY show when confirmed */}
+                    <div className="flex items-center gap-3 flex-wrap">
                       {apt.status === 'Confirmed' && apt.mode === 'Online' && apt.meetLink && (
                         <a
                           href={apt.meetLink}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg hover:-translate-y-0.5 transition-all text-sm"
+                          className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl font-bold hover:shadow-lg hover:-translate-y-0.5 transition-all shadow-md"
                         >
-                          <Video className="w-4 h-4" />
-                          Join Google Meet
+                          <Video className="w-5 h-5" />
+                          Join Consultation Now
                         </a>
                       )}
 
-                      {/* Pending status message */}
-                      {apt.status === 'Pending' && apt.mode === 'Online' && (
-                        <span className="text-xs text-amber-600 font-medium bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200">
-                          ⏳ Waiting for doctor confirmation
-                        </span>
+                      {apt.status === 'Pending' && (
+                        <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-xl border border-amber-200 text-sm font-bold">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Waiting for doctor to confirm...
+                        </div>
                       )}
 
                       {apt.status === 'Confirmed' && apt.mode === 'Online' && !apt.meetLink && (
-                        <span className="text-xs text-gray-400 italic">Meet link will be available shortly…</span>
+                        <span className="text-sm text-gray-400 italic bg-gray-50 px-4 py-2 rounded-xl border border-gray-100">
+                          Meet link will be available shortly...
+                        </span>
                       )}
 
-                      {/* Calendar badge */}
                       {apt.status !== 'Cancelled' && (
-                        <CalendarEventBadge
-                          eventLink={apt.calendarEventLink}
-                          onAdd={makeCalendarAdder(apt)}
-                          size="sm"
-                        />
+                        <div className="flex items-center">
+                          <CalendarEventBadge
+                            eventLink={apt.calendarEventLink}
+                            onAdd={makeCalendarAdder(apt)}
+                            size="md"
+                          />
+                        </div>
                       )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

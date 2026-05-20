@@ -102,3 +102,49 @@ export async function DELETE(req: NextRequest) {
 
   return NextResponse.json({ success: true, message: 'Order deleted successfully' })
 }
+
+// PATCH /api/patient/medicine-orders — update a medicine order
+export async function PATCH(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const patient = await getPatientRow(session.user.email)
+  if (!patient) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const body = await req.json()
+  const { id, items, total, address, paymentMethod } = body
+
+  if (!id) return NextResponse.json({ error: 'Order ID required' }, { status: 400 })
+
+  // Verify the order belongs to this patient and is pending
+  const { data: order, error: findError } = await supabaseServer
+    .from('medicine_orders')
+    .select('id, status, patient_id')
+    .eq('id', id)
+    .eq('patient_id', patient.id)
+    .single()
+
+  if (findError || !order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+
+  if (order.status !== 'pending') {
+    return NextResponse.json({ 
+      error: 'Only pending orders can be edited' 
+    }, { status: 400 })
+  }
+
+  const { data, error } = await supabaseServer
+    .from('medicine_orders')
+    .update({
+      items,
+      total,
+      delivery_address: address,
+      payment_method: paymentMethod,
+    })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  return NextResponse.json({ order: data, message: 'Order updated successfully' })
+}

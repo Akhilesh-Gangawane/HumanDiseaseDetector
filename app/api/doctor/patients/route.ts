@@ -37,13 +37,17 @@ export async function GET() {
   const patientDetails = detailsRes.data ?? []
   const predictions = predictionsRes.data ?? []
 
+  // Create Maps for O(1) lookups
+  const detailsMap = new Map(patientDetails.map(d => [d.user_id, d]))
+  const predictionsMap = new Map(predictions.map(p => [p.patient_id, p]))
+
   const patients = patientUsers.map((u, idx) => {
-    const detail = patientDetails.find(p => p.user_id === u.id)
+    const detail = detailsMap.get(u.id)
     const dob = detail?.date_of_birth
-    const age = dob ? Math.floor((Date.now() - new Date(dob).getTime()) / 3.156e10) : null
+    const age = dob ? Math.floor((Date.now() - new Date(dob).getTime()) / 3.156e10) : 0
 
     // Latest prediction for this patient
-    const latestPred = predictions.find(p => p.patient_id === u.id)
+    const latestPred = predictionsMap.get(u.id)
     const confidence = latestPred?.confidence ?? 0
     const risk: 'High' | 'Medium' | 'Low' =
       confidence >= 80 ? 'High' : confidence >= 50 ? 'Medium' : 'Low'
@@ -52,7 +56,7 @@ export async function GET() {
       id: idx + 1,
       userId: u.id,
       name: u.full_name ?? u.email,
-      age: age ?? 0,
+      age: age,
       avatar: u.full_name ?? '',
       gender: detail?.gender ?? '',
       blood_group: detail?.blood_group ?? '',

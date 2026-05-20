@@ -66,17 +66,37 @@ export default function DiseasePredictionPage() {
       };
       setResult(predResult);
 
-      // Save prediction to DB so doctor can see it
-      await fetch('/api/patient/predictions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          disease: predResult.prediction,
-          confidence: predResult.confidence,
-          symptoms: selected.map(s => s.display),
-          explanation: `${predResult.method} · ${selected.length} symptoms`,
-        }),
-      }).catch(() => { /* non-critical */ })
+      // Save prediction to DB so doctor can see it and patient has history
+      try {
+        const saveRes = await fetch('/api/patient/predictions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            disease: predResult.prediction,
+            confidence: predResult.confidence,
+            symptoms: selected.map(s => s.display),
+            explanation: `${predResult.method} · ${selected.length} symptoms`,
+          }),
+        });
+        
+        if (!saveRes.ok) {
+          const rawText = await saveRes.text().catch(() => '');
+          let saveErr: Record<string, unknown> = {};
+          try { saveErr = rawText ? JSON.parse(rawText) : {}; } catch { /* non-JSON body */ }
+          console.error(`Failed to save prediction to health records [HTTP ${saveRes.status}]:`, saveErr.error || rawText || '(empty body)');
+          // Show a warning but don't block the result display
+          if (saveRes.status === 401) {
+            console.warn('Not authenticated - prediction not saved to health records');
+          } else {
+            console.warn(`Failed to save prediction: ${saveErr.error || rawText || 'Unknown error'}`);
+          }
+        } else {
+          console.log('✓ Prediction saved successfully to health records');
+        }
+      } catch (saveError) {
+        console.error('Error saving prediction to health records:', saveError);
+        // Non-critical - show result anyway
+      }
     } catch (err) {
       if (err instanceof TypeError && err.message === 'Failed to fetch') {
         setError(`Cannot connect to prediction API.\nMake sure the FastAPI server is running:\n  cd Human-Health_model && python -m uvicorn app:app --port 8000`);
@@ -287,17 +307,15 @@ export default function DiseasePredictionPage() {
 
       {/* AI Chat Modal */}
       {chatContext && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="relative w-full max-w-2xl h-[90vh]">
-            <button
-              type="button"
-              onClick={() => setChatContext(null)}
-              className="absolute top-4 right-4 z-10 p-2 bg-white/90 hover:bg-white rounded-full shadow-lg transition-colors"
-              aria-label="Close chat"
-            >
-              <X className="w-6 h-6 text-gray-700" />
-            </button>
-            <ChatAssistant initialContext={chatContext} />
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setChatContext(null)}
+        >
+          <div
+            className="relative w-full sm:max-w-2xl h-[85dvh] sm:h-[90vh] flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
+            <ChatAssistant initialContext={chatContext} onClose={() => setChatContext(null)} />
           </div>
         </div>
       )}

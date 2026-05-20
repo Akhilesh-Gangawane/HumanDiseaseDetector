@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Mic, Bot, User, Activity, AlertTriangle, AlertCircle, CheckCircle, Info } from 'lucide-react';
+import { Send, Mic, Bot, User, X } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 interface Message {
@@ -20,11 +20,12 @@ export interface ChatContext {
 
 interface ChatAssistantProps {
   initialContext?: ChatContext;
+  onClose?: () => void;
 }
 
 const API_URL = '/api/chat';
 
-export default function ChatAssistant({ initialContext }: ChatAssistantProps) {
+export default function ChatAssistant({ initialContext, onClose }: ChatAssistantProps) {
   const welcomeText = initialContext
     ? `Hello! I can see your AI prediction results:\n\n🔬 Predicted Disease: ${initialContext.disease}\n📊 Confidence: ${initialContext.confidence}%\n🩺 Symptoms: ${initialContext.symptoms.join(', ')}\n\nI already have your full context. Ask me anything about this condition — causes, treatment, precautions, when to see a doctor, or anything else.`
     : "Hello! I'm your AI Medical Assistant.\n\nDescribe your symptoms and I'll analyze them. I can also answer general health questions.\n\nExample: \"I have fever, headache and fatigue for 2 days.\"";
@@ -42,14 +43,26 @@ export default function ChatAssistant({ initialContext }: ChatAssistantProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
 
+  // Close on Escape
+  useEffect(() => {
+    if (!onClose) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Check backend health on mount
+  // Check backend health on mount — ping Ollama via chat route
   useEffect(() => {
-    fetch('/api/predict', { method: 'GET' })
-      .then(r => setBackendOnline(r.ok))
+    fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'hi' }),
+    })
+      .then(r => setBackendOnline(r.status !== 503))
       .catch(() => setBackendOnline(false));
   }, []);
 
@@ -122,8 +135,8 @@ export default function ChatAssistant({ initialContext }: ChatAssistantProps) {
     } catch {
       // Fallback: answer from context without backend
       const fallback = initialContext
-        ? `I'm having trouble connecting to the backend right now.\n\nBased on your prediction of **${initialContext.disease}** (${initialContext.confidence}% confidence) with symptoms: ${initialContext.symptoms.join(', ')} — please consult a qualified doctor for proper diagnosis and treatment advice.`
-        : "⚠️ Couldn't connect to the AI backend. Please ensure the model server is running:\n\n  cd Human-Health_model && python -m uvicorn app:app --port 8000";
+        ? `I'm having trouble connecting to Ollama right now.\n\nBased on your prediction of **${initialContext.disease}** (${initialContext.confidence}% confidence) with symptoms: ${initialContext.symptoms.join(', ')} — please consult a qualified doctor for proper diagnosis and treatment advice.`
+        : "⚠️ Cannot connect to Ollama. Make sure it is running:\n\n  ollama serve\n  ollama pull llama3\n\nThen refresh this page.";
 
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
@@ -138,25 +151,37 @@ export default function ChatAssistant({ initialContext }: ChatAssistantProps) {
   };
 
   return (
-    <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-6 h-full flex flex-col">
+    <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-6 flex flex-col min-h-0 h-full">
       {/* Header */}
-      <div className="flex items-center space-x-3 mb-4">
+      <div className="flex items-center space-x-3 mb-4 shrink-0">
         <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-blue-500 rounded-lg flex items-center justify-center">
           <Bot className="w-5 h-5 text-white" />
         </div>
-        <div>
+        <div className="flex-1">
           <h3 className="text-xl font-bold text-gray-800">AI Medical Assistant</h3>
           <p className="text-xs text-gray-500">{initialContext ? `Context: ${initialContext.disease}` : 'RAG-powered symptom analysis'}</p>
         </div>
-        <div className="ml-auto flex items-center space-x-1.5">
-          <span className={`w-2 h-2 rounded-full ${backendOnline === null ? 'bg-yellow-400 animate-pulse' : backendOnline ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} />
-          <span className="text-xs text-gray-500">{backendOnline === null ? 'Checking...' : backendOnline ? 'Online' : 'Offline'}</span>
+        <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1.5">
+            <span className={`w-2 h-2 rounded-full ${backendOnline === null ? 'bg-yellow-400 animate-pulse' : backendOnline ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} />
+            <span className="text-xs text-gray-500">{backendOnline === null ? 'Checking...' : backendOnline ? 'Online' : 'Offline'}</span>
+          </div>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close chat"
+              className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-700"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </div>
 
       {/* Context pill */}
       {initialContext && (
-        <div className="mb-4 flex flex-wrap gap-2 p-3 bg-blue-50 border border-blue-200 rounded-2xl">
+        <div className="mb-4 flex flex-wrap gap-2 p-3 bg-blue-50 border border-blue-200 rounded-2xl shrink-0">
           <span className="px-3 py-1 bg-blue-600 text-white text-xs font-semibold rounded-full capitalize">{initialContext.disease}</span>
           <span className="px-3 py-1 bg-teal-100 text-teal-700 text-xs font-semibold rounded-full">{initialContext.confidence}% confidence</span>
           {initialContext.symptoms.slice(0, 3).map(s => (
@@ -169,7 +194,7 @@ export default function ChatAssistant({ initialContext }: ChatAssistantProps) {
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-1">
+      <div className="flex-1 overflow-y-auto overscroll-contain space-y-4 mb-4 pr-1 min-h-0">
         {messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`flex items-start space-x-2 max-w-[88%] ${msg.sender === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}>
@@ -209,7 +234,7 @@ export default function ChatAssistant({ initialContext }: ChatAssistantProps) {
       </div>
 
       {/* Input */}
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2 shrink-0">
         <div className="flex-1 relative">
           <input
             type="text"

@@ -51,8 +51,11 @@ export async function GET() {
     symptoms: p.symptoms ?? [],
     explanation: p.explanation ?? '',
     status: p.status,
-    doctorName: (p.users as { full_name?: string } | null)?.full_name ?? 'Doctor',
+    doctorName: p.initiated_by === 'patient'
+      ? 'You (Self-Check)'
+      : ((p.users as { full_name?: string } | null)?.full_name ?? 'Doctor'),
     createdAt: p.created_at,
+    initiatedBy: p.initiated_by ?? 'doctor',
   }))
 
   const labTests = (labTestsRes.data ?? []).map(t => ({

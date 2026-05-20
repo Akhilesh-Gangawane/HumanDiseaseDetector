@@ -77,25 +77,20 @@ export function PatientStateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function init() {
       try {
-        const [profileRes, notifsRes, aptsRes] = await Promise.all([
+        const responses = await Promise.all([
           fetch('/api/user/profile'),
           fetch('/api/patient/notifications'),
           fetch('/api/patient/appointments'),
         ]);
 
-        if (profileRes.ok) {
-          const d = await profileRes.json();
-          if (d.userId)       setUserId(d.userId);
-          if (d.patientRowId) setPatientRowId(d.patientRowId);
-        }
-        if (notifsRes.ok) {
-          const d = await notifsRes.json();
-          setNotifications(d.notifications ?? []);
-        }
-        if (aptsRes.ok) {
-          const d = await aptsRes.json();
-          setAppointments(d.appointments ?? []);
-        }
+        const [pData, nData, aData] = await Promise.all(
+          responses.map(res => res.ok ? res.json() : Promise.resolve({}))
+        );
+
+        if (pData.userId)       setUserId(pData.userId);
+        if (pData.patientRowId) setPatientRowId(pData.patientRowId);
+        if (nData.notifications) setNotifications(nData.notifications);
+        if (aData.appointments)  setAppointments(aData.appointments);
       } catch (err) {
         console.error('[PatientStateProvider] init error:', err);
       } finally {

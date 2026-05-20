@@ -7,7 +7,7 @@ import Footer from '@/components/patient/Footer';
 import NeuralNetworkContainer from '@/components/ui/NeuralNetworkContainer';
 import { useRouter } from 'next/navigation';
 
-interface Prediction { id: string; disease: string; confidence: number; symptoms: string[]; explanation: string; status: string; doctorName: string; createdAt: string; }
+interface Prediction { id: string; disease: string; confidence: number; symptoms: string[]; explanation: string; status: string; doctorName: string; createdAt: string; initiatedBy?: string; }
 interface LabTest { id: string; testName: string; status: string; priority: string; diagnosisReason: string; labValues: { name: string; value: string; unit: string; referenceRange: string; status: string }[]; requestDate: string; doctorName: string | null; initiatedBy: string; price: number | null; }
 interface Vital { id: string; date: string; heartRate: number; bloodPressure: { systolic: number; diastolic: number }; glucose: number; temperature: number; }
 interface Prescription { id: string; medicines: { name: string; dosage: string; frequency: string }[]; notes: string; issuedDate: string; doctorName: string; }
@@ -22,20 +22,35 @@ export default function PatientRecordsPage() {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
+    setLoading(true);
+    setError(null);
     Promise.all([
-      fetch('/api/patient/records').then(r => r.json()),
-      fetch('/api/patient/recordings').then(r => r.json()),
+      fetch('/api/patient/records').then(async r => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error ?? `Records fetch failed (${r.status})`);
+        return data;
+      }),
+      fetch('/api/patient/recordings').then(async r => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error ?? `Recordings fetch failed (${r.status})`);
+        return data;
+      }),
     ]).then(([records, recs]) => {
       setPredictions(records.predictions ?? []);
       setLabTests(records.labTests ?? []);
       setVitals(records.vitals ?? []);
       setPrescriptions(records.prescriptions ?? []);
       setRecordings(recs.recordings ?? []);
+    }).catch(err => {
+      console.error('Failed to load health records:', err);
+      setError(err.message ?? 'Failed to load health records. Please try again.');
     }).finally(() => setLoading(false));
-  }, []);
+  }, [retryCount]);
 
   const statusColor = (s: string) => {
     if (s === 'Completed' || s === 'Approved') return 'bg-green-100 text-green-700';
@@ -104,6 +119,21 @@ export default function PatientRecordsPage() {
           <div className="flex items-center justify-center py-24">
             <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
           </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
+              <span className="text-3xl">⚠️</span>
+            </div>
+            <p className="text-lg font-semibold text-gray-800 mb-1">Could not load health records</p>
+            <p className="text-sm text-gray-500 mb-6 max-w-sm">{error}</p>
+            <button
+              type="button"
+              onClick={() => setRetryCount(c => c + 1)}
+              className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-teal-500 text-white rounded-xl font-semibold hover:shadow-md transition-all"
+            >
+              Try Again
+            </button>
+          </div>
         ) : (
           <div className="space-y-4">
             {/* AI Predictions */}
@@ -119,6 +149,9 @@ export default function PatientRecordsPage() {
                       <div className="flex items-center gap-3 mb-1">
                         <span className="text-lg font-bold text-gray-900">{p.disease}</span>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor(p.status)}`}>{p.status}</span>
+                        {p.initiatedBy === 'patient' && (
+                          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-teal-100 text-teal-700">Self-Check</span>
+                        )}
                       </div>
                       <p className="text-sm text-gray-500">By {p.doctorName} · {new Date(p.createdAt).toLocaleDateString()}</p>
                       <div className="mt-2 flex items-center gap-2">
