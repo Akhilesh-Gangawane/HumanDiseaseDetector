@@ -6,8 +6,9 @@ import Swal from 'sweetalert2'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Mail, Lock, User, Eye, EyeOff, ArrowLeft, Stethoscope, UserCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { Mail, Lock, User, Eye, EyeOff, ArrowLeft, Stethoscope, UserCircle, CheckCircle, XCircle, Loader2, ShieldCheck } from 'lucide-react'
 import { signIn } from 'next-auth/react'
+import HeartbeatTransition from '@/components/HeartbeatTransition'
 
 const DoctorModel3D = lazy(() => import('@/components/DoctorModel3D'))
 const PatientModel3D = lazy(() => import('@/components/PatientModel3D'))
@@ -42,8 +43,9 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
-  const [userRole, setUserRole] = useState<'doctor' | 'patient'>('patient')
+  const [userRole, setUserRole] = useState<'doctor' | 'patient' | 'admin'>('patient')
   const [loading, setLoading] = useState(false)
+  const [redirecting, setRedirecting] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -242,11 +244,32 @@ export default function LoginPage() {
       })
     }
 
-    // Redirect based on selected role
-    router.push(userRole === 'doctor' ? '/dashboard' : '/patient-dashboard')
+    // Show heartbeat transition then redirect
+    setRedirecting(true)
+    if (userRole === 'admin') {
+      router.push('/admin')
+    } else {
+      router.push(userRole === 'doctor' ? '/dashboard' : '/patient-dashboard')
+    }
   }
 
   return (
+    <>
+      {/* Heartbeat overlay — shown while authenticating or redirecting */}
+      <AnimatePresence>
+        {(loading || redirecting) && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[9999] overflow-hidden"
+          >
+            <HeartbeatTransition />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50 relative overflow-hidden flex items-center justify-center px-4 py-8">
       {/* Abstract Background Shapes */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -422,7 +445,8 @@ export default function LoginPage() {
 
             {/* Right Side - Form */}
             <div className="p-8 md:p-12">
-              {/* Tabs */}
+              {/* Tabs — hidden for admin (no sign-up) */}
+              {userRole !== 'admin' && (
               <div className="flex gap-2 mb-8 bg-gray-100 p-1.5 rounded-xl">
                 <button
                   type="button"
@@ -447,6 +471,7 @@ export default function LoginPage() {
                   Create Account
                 </button>
               </div>
+              )}
 
               {/* Form */}
               <AnimatePresence mode="wait">
@@ -464,7 +489,7 @@ export default function LoginPage() {
                     <label className="block text-sm font-semibold text-gray-700 mb-3">
                       I am a
                     </label>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-3 gap-3">
                       <button
                         type="button"
                         onClick={() => setUserRole('patient')}
@@ -489,10 +514,22 @@ export default function LoginPage() {
                         <Stethoscope className="w-5 h-5" />
                         <span className="font-semibold">Doctor</span>
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => setUserRole('admin')}
+                        className={`flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl border-2 transition-all ${
+                          userRole === 'admin'
+                            ? 'border-purple-500 bg-purple-50 text-purple-700'
+                            : 'border-gray-200 bg-white/50 text-gray-600 hover:border-gray-300'
+                        }`}
+                      >
+                        <ShieldCheck className="w-5 h-5" />
+                        <span className="font-semibold">Admin</span>
+                      </button>
                     </div>
                   </div>
 
-                  {activeTab === 'signup' && (
+                  {activeTab === 'signup' && userRole !== 'admin' && (
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Full Name
@@ -585,7 +622,7 @@ export default function LoginPage() {
                     </div>
                   </div>
 
-                  {activeTab === 'signup' && (
+                  {activeTab === 'signup' && userRole !== 'admin' && (
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Confirm Password
@@ -752,9 +789,10 @@ export default function LoginPage() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   type="button"
-                  onClick={() => signIn('google', {
-                    callbackUrl: '/auth/callback',
-                  })}
+                  onClick={() => {
+                    setRedirecting(true)
+                    signIn('google', { callbackUrl: '/auth/callback' })
+                  }}
                   className="flex items-center justify-center gap-3 px-4 py-3.5 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all bg-white/50 backdrop-blur-sm"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -783,5 +821,6 @@ export default function LoginPage() {
         </motion.div>
       </div>
     </div>
+    </>
   )
 }

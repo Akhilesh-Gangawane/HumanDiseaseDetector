@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Search, Filter, Eye, Download, X } from 'lucide-react';
+import PatientActivityFeed from './PatientActivityFeed';
 import Swal from 'sweetalert2';
 import ProgressBar from './ProgressBar';
 import jsPDF from 'jspdf';
@@ -13,6 +14,39 @@ export default function PatientManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRisk, setFilterRisk] = useState('All');
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [loadingActivity, setLoadingActivity] = useState(false);
+
+  // Close modal on Escape key
+  useEffect(() => {
+    if (!selectedPatient) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSelectedPatient(null); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [selectedPatient]);
+
+  const fetchPatientActivity = async (userId: string) => {
+    setLoadingActivity(true);
+    try {
+      const res = await fetch(`/api/doctor/patients/${userId}/activity`);
+      if (res.ok) {
+        const data = await res.json();
+        setActivities(data.activities || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch activity:", err);
+    } finally {
+      setLoadingActivity(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedPatient?.userId) {
+      fetchPatientActivity(selectedPatient.userId);
+    } else {
+      setActivities([]);
+    }
+  }, [selectedPatient]);
 
   const filteredPatients = patients.filter((patient) => {
     const matchesSearch = patient.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -185,8 +219,14 @@ export default function PatientManagement() {
       </div>
 
       {selectedPatient && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+          onClick={() => setSelectedPatient(null)}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            onClick={e => e.stopPropagation()}
+          >
             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
               <div className="flex items-center gap-4">
                 <img
@@ -242,6 +282,15 @@ export default function PatientManagement() {
                     </span>
                   ))}
                 </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-bold tracking-wider text-gray-400 uppercase mb-4">Activity History</h3>
+                <PatientActivityFeed
+                  activities={activities}
+                  loading={loadingActivity}
+                  emptyLabel="No recent activity found for this patient."
+                />
               </div>
             </div>
 

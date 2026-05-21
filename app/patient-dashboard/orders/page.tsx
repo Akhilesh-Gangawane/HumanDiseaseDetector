@@ -29,10 +29,10 @@ export default function OrdersPage() {
               </div>
             </div>
             <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
-              My Orders & Bookings
+              My Medicine Orders
             </h1>
             <p className="text-xl text-blue-100 mb-8 max-w-3xl mx-auto">
-              Track all your medicine orders, lab test bookings, and doctor consultations in one place
+              Manage your medicine purchases, track deliveries, and keep your prescription history up to date
             </p>
           </div>
         </div>

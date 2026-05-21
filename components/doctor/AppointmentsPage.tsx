@@ -1,15 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import { Calendar as CalendarIcon, Clock, CheckCircle, XCircle, Plus, Search, Video } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, CheckCircle, XCircle, Plus, Search, Video, MessageSquare } from 'lucide-react';
 import { useDoctorState, Appointment } from './DoctorStateContext';
 import CalendarEventBadge from '@/components/ui/CalendarEventBadge';
+import { useSession } from 'next-auth/react';
+import AppointmentChat from '@/components/shared/AppointmentChat';
 
 export default function AppointmentsPage() {
   const { appointments, setAppointments, addNotification, patients } = useDoctorState();
+  const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState<'All' | 'Confirmed' | 'Pending' | 'Cancelled'>('All');
   const [isScheduling, setIsScheduling] = useState(false);
+  const [chatAppointment, setChatAppointment] = useState<Appointment | null>(null);
   const [newAppt, setNewAppt] = useState({ patientName: '', patientId: '', date: '', time: '', type: 'Consultation', mode: 'Offline' as 'Online' | 'Offline' });
+
+  const currentUserId   = (session?.user as any)?.id ?? '';
+  const currentUserName = session?.user?.name ?? 'Doctor';
 
   const filteredAppointments = appointments.filter(apt =>
     activeTab === 'All' ? true : apt.status === activeTab
@@ -25,29 +32,33 @@ export default function AppointmentsPage() {
   };
 
   const handleUpdateStatus = async (id: string, status: 'Confirmed' | 'Cancelled') => {
-    // Optimistic update
-    setAppointments(appointments.map(apt => apt.id === id ? { ...apt, status } : apt));
-
     const res = await fetch('/api/doctor/appointments', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, status }),
     });
 
-    // If confirmed, update meetLink and calendarEventLink in state
-    if (res.ok) {
-      const { meetLink, calendarEventLink } = await res.json();
-      setAppointments(prev => prev.map(apt =>
-        apt.id === id
-          ? {
-              ...apt,
-              status,
-              ...(meetLink ? { meetLink } : {}),
-              ...((calendarEventLink !== undefined) ? { calendarEventLink } : {}),
-            }
-          : apt,
-      ));
+    if (!res.ok) {
+      const errorData = await res.json();
+      alert(errorData.error || 'Failed to update appointment');
+      return;
     }
+
+    // Optimistic update
+    setAppointments(appointments.map(apt => apt.id === id ? { ...apt, status } : apt));
+
+    // If confirmed, update meetLink and calendarEventLink in state
+    const { meetLink, calendarEventLink } = await res.json();
+    setAppointments(prev => prev.map(apt =>
+      apt.id === id
+        ? {
+            ...apt,
+            status,
+            ...(meetLink ? { meetLink } : {}),
+            ...((calendarEventLink !== undefined) ? { calendarEventLink } : {}),
+          }
+        : apt,
+    ));
 
     const target = appointments.find(a => a.id === id);
     if (target) {
@@ -77,26 +88,37 @@ export default function AppointmentsPage() {
       }),
     });
 
-    if (res.ok) {
-      const { appointment } = await res.json();
-      setAppointments(prev => [...prev, appointment]);
-      addNotification({
-        title: 'New Appointment Scheduled',
-        message: `Scheduled ${newAppt.type} for ${newAppt.patientName}`,
-        type: 'appointment'
-      });
+    if (!res.ok) {
+      const errorData = await res.json();
+      alert(errorData.error || 'Failed to create appointment');
+      return;
     }
+
+    const { appointment } = await res.json();
+    setAppointments(prev => [...prev, appointment]);
+    addNotification({
+      title: 'New Appointment Scheduled',
+      message: `Scheduled ${newAppt.type} for ${newAppt.patientName}`,
+      type: 'appointment'
+    });
 
     setIsScheduling(false);
     setNewAppt({ patientName: '', patientId: '', date: '', time: '', type: 'Consultation', mode: 'Offline' });
   };
 
   return (
+    <>
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Appointments</h1>
-          <p className="text-gray-600">Manage your daily schedule and consultations</p>
+          <p className="text-gray-600 flex items-center gap-2">
+            Manage your daily schedule and consultations
+            <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium">
+              <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+              Live sync
+            </span>
+          </p>
         </div>
         <button
           type="button"
@@ -276,6 +298,17 @@ export default function AppointmentsPage() {
                     </a>
                   )}
 
+                  {/* Chat button — only for confirmed appointments */}
+                  {apt.status === 'Confirmed' && (
+                    <button
+                      type="button"
+                      onClick={() => setChatAppointment(apt)}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-600 bg-teal-50 px-2.5 py-1 rounded-full hover:bg-teal-100 transition-colors border border-teal-200"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" /> Chat
+                    </button>
+                  )}
+
                   {/* Calendar badge */}
                   {apt.status !== 'Cancelled' && (
                     <CalendarEventBadge
@@ -345,5 +378,18 @@ export default function AppointmentsPage() {
         </div>
       </div>
     </div>
+
+    {/* Real-time Chat Modal */}
+    {chatAppointment && currentUserId && (
+      <AppointmentChat
+        appointmentId={chatAppointment.id}
+        currentUserId={currentUserId}
+        currentUserName={currentUserName}
+        senderRole="doctor"
+        otherPersonName={chatAppointment.patientName}
+        onClose={() => setChatAppointment(null)}
+      />
+    )}
+    </>
   );
 }

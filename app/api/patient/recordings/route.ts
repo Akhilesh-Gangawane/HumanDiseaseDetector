@@ -17,7 +17,7 @@ export async function GET() {
   // Only return recordings where shared = true
   const { data, error } = await supabaseServer
     .from('consultation_recordings')
-    .select('*, appointments(date, time, type), users!doctor_id(full_name)')
+    .select('*, appointments(appointment_date, appointment_time, type), users!doctor_id(full_name)')
     .eq('patient_id', userRow.id)
     .eq('shared', true)
     .order('created_at', { ascending: false })
@@ -31,8 +31,8 @@ export async function GET() {
     durationMins: r.duration_mins,
     notes: r.notes ?? '',
     doctorName: (r.users as { full_name?: string } | null)?.full_name ?? 'Doctor',
-    appointmentDate: (r.appointments as { date?: string } | null)?.date ?? '',
-    appointmentTime: (r.appointments as { time?: string } | null)?.time ?? '',
+    appointmentDate: (r.appointments as { appointment_date?: string } | null)?.appointment_date ?? '',
+    appointmentTime: (r.appointments as { appointment_time?: string } | null)?.appointment_time ?? '',
     appointmentType: (r.appointments as { type?: string } | null)?.type ?? '',
     createdAt: r.created_at,
   }))

@@ -8,7 +8,7 @@ import Footer from '@/components/patient/Footer';
 import { AddressModal, PaymentModal } from '@/components/patient/CheckoutModals';
 import { OrderReviewModal, OrderSuccessModal, ReceiptModal } from '@/components/patient/OrderModals';
 import Swal from 'sweetalert2';
-import { ShoppingCart, Search, Heart, Star, TrendingUp, Package, Clock, Shield, X, Plus, Minus, Pill, ArrowLeft, Zap, Award, CreditCard, Truck, MapPin, Phone, Mail, User, CheckCircle2, Download, Calendar, Home, Building, Loader2 } from 'lucide-react';
+import { ShoppingCart, Search, Heart, Star, TrendingUp, Package, Clock, Shield, X, Plus, Minus, Pill, ArrowLeft, Zap, Award, CreditCard, Truck, MapPin, Phone, Mail, User, CheckCircle2, Download, Calendar, Home, Building, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface Medicine {
@@ -21,7 +21,6 @@ interface Medicine {
   reviews_count: number;
   in_stock: boolean;
   requires_prescription: boolean;
-  image: string;
   manufacturer: string;
   description: string;
 }
@@ -102,14 +101,44 @@ export default function BuyMedicinePage() {
 
   // Fetch medicines from API
   useEffect(() => {
-    fetch('/api/public/medicines')
-      .then(r => r.json())
-      .then(d => {
-        const meds = (d.medicines ?? []).map((m: Medicine) => ({ ...m, image: '💊' }));
-        setMedicines(meds);
-      })
-      .catch(() => {})
-      .finally(() => setLoadingMedicines(false));
+    const fetchAndSyncMedicines = async () => {
+      try {
+        console.log('🔍 Fetching medicines...');
+        const response = await fetch('/api/public/medicines');
+        const data = await response.json();
+        console.log('📦 Medicines received:', data.medicines?.length || 0);
+        
+        const meds = data.medicines ?? [];
+        
+        // If no medicines found, auto-sync
+        if (meds.length === 0) {
+          console.log('⚠️ No medicines found, syncing from FDA API...');
+          const syncResponse = await fetch('/api/medicines/sync', { method: 'POST' });
+          const syncData = await syncResponse.json();
+          console.log('✅ Sync response:', syncData);
+          
+          if (syncResponse.ok) {
+            // Fetch again after sync
+            const newResponse = await fetch('/api/public/medicines');
+            const newData = await newResponse.json();
+            console.log('📦 Medicines after sync:', newData.medicines?.length || 0);
+            setMedicines(newData.medicines ?? []);
+          } else {
+            console.error('❌ Sync failed:', syncData);
+            setMedicines(meds);
+          }
+        } else {
+          console.log('✅ Medicines loaded successfully');
+          setMedicines(meds);
+        }
+      } catch (error) {
+        console.error('❌ Failed to fetch medicines:', error);
+      } finally {
+        setLoadingMedicines(false);
+      }
+    };
+
+    fetchAndSyncMedicines();
   }, []);
 
   // Fetch platform stats
@@ -507,30 +536,107 @@ export default function BuyMedicinePage() {
         {/* Medicine Grid */}
         {loadingMedicines ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-8 h-8 text-green-500 animate-spin" />
+            <div className="text-center">
+              <Loader2 className="w-8 h-8 text-green-500 animate-spin mx-auto mb-4" />
+              <p className="text-gray-600">Loading medicines...</p>
+              <p className="text-sm text-gray-500 mt-2">Check browser console (F12) for details</p>
+            </div>
           </div>
         ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {filteredMedicines.map(medicine => (
-              <MedicineCard
-                key={medicine.id}
-                medicine={medicine}
-                onAddToCart={addToCart}
-                onToggleWishlist={toggleWishlist}
-                isWishlisted={wishlist.includes(medicine.id)}
-              />
-            ))}
-          </div>
-        )}
+          <>
+            {/* Debug Info */}
+            {medicines.length === 0 && (
+              <div className="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-6 mb-8">
+                <div className="flex items-start space-x-3">
+                  <AlertCircle className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-1" />
+                  <div>
+                    <h3 className="font-bold text-yellow-800 mb-2">No Medicines Found</h3>
+                    <p className="text-yellow-700 mb-3">
+                      The medicine database appears to be empty. This could be due to:
+                    </p>
+                    <ul className="list-disc list-inside text-yellow-700 space-y-1 mb-4">
+                      <li>Database connection issue</li>
+                      <li>Auto-sync failed</li>
+                      <li>API endpoint error</li>
+                    </ul>
+                    <div className="flex flex-wrap gap-3">
+                      <button
+                        onClick={async () => {
+                          setLoadingMedicines(true);
+                          try {
+                            console.log('🔄 Manual sync triggered...');
+                            const response = await fetch('/api/medicines/sync', { method: 'POST' });
+                            const data = await response.json();
+                            console.log('📦 Sync result:', data);
+                            if (response.ok) {
+                              const medsResponse = await fetch('/api/public/medicines');
+                              const medsData = await medsResponse.json();
+                              const newMeds = medsData.medicines ?? [];
+                              setMedicines(newMeds);
+                              await Swal.fire({
+                                icon: 'success',
+                                title: 'Success!',
+                                text: `${newMeds.length} medicines synced successfully`,
+                                confirmButtonColor: '#10b981',
+                              });
+                            } else {
+                              throw new Error(data.error || 'Sync failed');
+                            }
+                          } catch (error) {
+                            console.error('❌ Manual sync error:', error);
+                            await Swal.fire({
+                              icon: 'error',
+                              title: 'Sync Failed',
+                              text: error instanceof Error ? error.message : 'Failed to sync medicines',
+                              confirmButtonColor: '#ef4444',
+                            });
+                          } finally {
+                            setLoadingMedicines(false);
+                          }
+                        }}
+                        className="px-6 py-3 bg-yellow-600 text-white rounded-xl font-semibold hover:bg-yellow-700 transition-colors flex items-center space-x-2"
+                      >
+                        <RefreshCw className="w-5 h-5" />
+                        <span>Try Manual Sync</span>
+                      </button>
+                      <button
+                        onClick={() => window.location.reload()}
+                        className="px-6 py-3 bg-gray-600 text-white rounded-xl font-semibold hover:bg-gray-700 transition-colors flex items-center space-x-2"
+                      >
+                        <RefreshCw className="w-5 h-5" />
+                        <span>Refresh Page</span>
+                      </button>
+                    </div>
+                    <p className="text-sm text-yellow-600 mt-4">
+                      💡 Tip: Open browser console (F12) to see detailed logs
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
-        {!loadingMedicines && filteredMedicines.length === 0 && (
-          <div className="text-center py-16">
-            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Search className="w-12 h-12 text-gray-400" />
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {filteredMedicines.map(medicine => (
+                <MedicineCard
+                  key={medicine.id}
+                  medicine={medicine}
+                  onAddToCart={addToCart}
+                  onToggleWishlist={toggleWishlist}
+                  isWishlisted={wishlist.includes(medicine.id)}
+                />
+              ))}
             </div>
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">No medicines found</h3>
-            <p className="text-gray-600">Try adjusting your search or filters</p>
-          </div>
+
+            {!loadingMedicines && filteredMedicines.length === 0 && (
+              <div className="text-center py-16">
+                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Search className="w-12 h-12 text-gray-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-800 mb-2">No medicines found</h3>
+                <p className="text-gray-600">Try adjusting your search or filters</p>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -649,9 +755,13 @@ interface MedicineCardProps {
 function MedicineCard({ medicine, onAddToCart, onToggleWishlist, isWishlisted }: MedicineCardProps) {
   return (
     <div className="group bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-      {/* Image Section */}
-      <div className="relative bg-gradient-to-br from-green-50 to-teal-50 p-8 flex items-center justify-center h-48">
-        <div className="text-6xl">{medicine.image}</div>
+      {/* Header Section with Category Badge */}
+      <div className="relative bg-gradient-to-br from-green-50 to-teal-50 p-6 flex items-center justify-center h-32">
+        <div className="text-center">
+          <span className="text-xs font-medium text-green-600 bg-white px-3 py-1 rounded-full shadow-sm">
+            {medicine.category}
+          </span>
+        </div>
         
         {/* Wishlist Button */}
         <button
@@ -769,8 +879,8 @@ function CartDrawer({ cart, onClose, onRemove, onUpdateQuantity, total, delivery
           ) : (
             cart.map(item => (
               <div key={item.id} className="flex items-center space-x-4 bg-gray-50 rounded-2xl p-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-green-50 to-teal-50 rounded-xl flex items-center justify-center text-3xl">
-                  {item.image}
+                <div className="w-16 h-16 bg-gradient-to-br from-green-50 to-teal-50 rounded-xl flex items-center justify-center">
+                  <span className="text-xs font-semibold text-green-700">{item.category.substring(0, 3).toUpperCase()}</span>
                 </div>
                 <div className="flex-1">
                   <h4 className="font-semibold text-gray-800 text-sm">{item.name}</h4>

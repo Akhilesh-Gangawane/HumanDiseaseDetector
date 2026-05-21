@@ -3,6 +3,12 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/authOptions'
 import { supabaseServer } from '@/lib/supabaseServer'
 import { createCalendarEvent, getValidAccessToken } from '@/lib/googleCalendar'
+import { linkDoctorPatient } from '@/lib/prescriptionService'
+import {
+  doctorAppointmentFilterIds,
+  normalizePatientRowId,
+  resolvePatientRowIdsToUserIds,
+} from '@/lib/patientResolve'
 
 async function getDoctorRow(email: string) {
   const { data } = await supabaseServer
@@ -24,18 +30,25 @@ export async function GET() {
   const doctor = await getDoctorRow(session.user.email)
   if (!doctor) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+  const doctorFilterIds = doctorAppointmentFilterIds(doctor.id, doctor.doctorRowId)
+
   const { data, error } = await supabaseServer
     .from('appointments')
     .select('*')
-    .eq('doctor_id', doctor.doctorRowId ?? doctor.id)
+    .in('doctor_id', doctorFilterIds)
     .order('appointment_date', { ascending: true })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  const patientRowToUserId = await resolvePatientRowIdsToUserIds(
+    (data ?? []).map((a: Record<string, unknown>) => a.patient_id),
+  )
 
   const appointments = (data ?? []).map((a: Record<string, unknown>) => ({
     id: a.id,
     patientName: a.patient_name,
     patientId: a.patient_id,
+    patientUserId: patientRowToUserId[normalizePatientRowId(a.patient_id) ?? ''] ?? null,
     date: a.appointment_date,
     time: a.appointment_time,
     type: a.type,
@@ -69,78 +82,87 @@ export async function POST(req: NextRequest) {
   if (!doctor.doctorRowId)
     return NextResponse.json({ error: 'Doctor profile not found.' }, { status: 400 })
 
+  // Get doctor's saved Google Meet link
+  const { data: doctorProfile } = await supabaseServer
+    .from('doctors')
+    .select('google_meet_link')
+    .eq('id', doctor.doctorRowId)
+    .single()
+
+  // If creating an online appointment, require Google Meet link
+  if (mode === 'Online' && !doctorProfile?.google_meet_link) {
+    return NextResponse.json({ 
+      error: 'Please add your Google Meet link in your profile before creating online appointments.' 
+    }, { status: 400 })
+  }
+
   let patientEmail: string | null = null
   let patientGoogleAccessToken: string | null = null
   let patientGoogleRefreshToken: string | null = null
-  // patientId from the doctor UI is users.id — resolve to patients.id for the FK
   let patientRowId: string | null = null
-  if (patientId) {
-    const { data: pu } = await supabaseServer
-      .from('users')
-      .select('email, google_access_token, google_refresh_token')
-      .eq('id', patientId)
-      .single()
-    patientEmail              = pu?.email              ?? null
-    patientGoogleAccessToken  = pu?.google_access_token  ?? null
-    patientGoogleRefreshToken = pu?.google_refresh_token ?? null
 
-    // Resolve patients.id (FK) from users.id
-    const { data: pr } = await supabaseServer
-      .from('patients').select('id').eq('user_id', patientId).single()
-    patientRowId = pr?.id ?? null
+  if (patientId) {
+    const [userRes, patientRes] = await Promise.all([
+      supabaseServer.from('users').select('email, google_access_token, google_refresh_token').eq('id', patientId).single(),
+      supabaseServer.from('patients').select('id').eq('user_id', patientId).single()
+    ]);
+    
+    const pu = userRes.data;
+    patientEmail = pu?.email ?? null;
+    patientGoogleAccessToken = pu?.google_access_token ?? null;
+    patientGoogleRefreshToken = pu?.google_refresh_token ?? null;
+    patientRowId = patientRes.data?.id ?? null;
   }
 
+  // Use doctor's saved Meet link for online appointments
   let meetLink: string | null = null
+  if (mode === 'Online' && doctorProfile?.google_meet_link) {
+    meetLink = doctorProfile.google_meet_link
+  }
   let calendarEventId: string | null = null
   let calendarEventLink: string | null = null
 
   const doctorAccessToken = (session as any).access_token
-  if (doctorAccessToken) {
-    try {
-      const attendees = [doctor.email, patientEmail].filter(Boolean) as string[]
-      const calResult = await createCalendarEvent(doctorAccessToken, {
-        summary: `${type ?? 'Consultation'} — ${patientName}`,
-        description: `Medical appointment with Dr. ${doctor.full_name ?? 'Doctor'}.\nPatient: ${patientName}\nMode: ${mode ?? 'Offline'}`,
-        date,
-        time,
-        durationMins: 30,
-        attendeeEmails: attendees,
-      })
-      calendarEventId   = calResult.eventId
-      calendarEventLink = calResult.eventLink
-      if (mode === 'Online' && calResult.meetLink) {
-        meetLink = calResult.meetLink
-      }
-    } catch (calErr) {
-      console.error('[calendar] Failed to create doctor calendar event:', calErr)
-    }
-  }
-
+  const validPatientToken = await getValidAccessToken(patientGoogleAccessToken, patientGoogleRefreshToken)
+  
   let patientCalendarEventId: string | null = null
   let patientCalendarEventLink: string | null = null
 
-  const validPatientToken = await getValidAccessToken(patientGoogleAccessToken, patientGoogleRefreshToken)
-  if (validPatientToken) {
-    try {
-      const attendees = [patientEmail, doctor.email].filter(Boolean) as string[]
-      const calResult = await createCalendarEvent(validPatientToken, {
-        summary: `${type ?? 'Consultation'} — Dr. ${doctor.full_name ?? 'Doctor'}`,
-        description: `Confirmed appointment with Dr. ${doctor.full_name ?? 'Doctor'}.\nMode: ${mode ?? 'Offline'}${meetLink ? `\nJoin Meet: ${meetLink}` : ''}`,
-        date,
-        time,
-        durationMins: 30,
-        attendeeEmails: attendees,
-      })
-      patientCalendarEventId   = calResult.eventId
-      patientCalendarEventLink = calResult.eventLink
-      if (validPatientToken !== patientGoogleAccessToken && patientId) {
-        await supabaseServer
-          .from('users')
-          .update({ google_access_token: validPatientToken })
-          .eq('id', patientId)
-      }
-    } catch (calErr) {
-      console.error('[calendar] Failed to create patient calendar event:', calErr)
+  // Create both calendar events in parallel
+  const [calResultDoctor, calResultPatient] = await Promise.all([
+    doctorAccessToken ? createCalendarEvent(doctorAccessToken, {
+      summary: `${type ?? 'Consultation'} — ${patientName}`,
+      description: `Medical appointment with Dr. ${doctor.full_name ?? 'Doctor'}.\nPatient: ${patientName}\nMode: ${mode ?? 'Offline'}${meetLink ? `\n\nJoin Google Meet: ${meetLink}` : ''}`,
+      date,
+      time,
+      durationMins: 30,
+      attendeeEmails: [doctor.email, patientEmail].filter(Boolean) as string[],
+    }).catch(err => { console.error('[calendar] Doctor event failed:', err); return null; }) : Promise.resolve(null),
+
+    validPatientToken ? createCalendarEvent(validPatientToken, {
+      summary: `${type ?? 'Consultation'} — Dr. ${doctor.full_name ?? 'Doctor'}`,
+      description: `Confirmed appointment with Dr. ${doctor.full_name ?? 'Doctor'}.\nMode: ${mode ?? 'Offline'}${meetLink ? `\n\nJoin Google Meet: ${meetLink}` : ''}`,
+      date,
+      time,
+      durationMins: 30,
+      attendeeEmails: [patientEmail, doctor.email].filter(Boolean) as string[],
+    }).catch(err => { console.error('[calendar] Patient event failed:', err); return null; }) : Promise.resolve(null)
+  ]);
+
+  if (calResultDoctor) {
+    calendarEventId = calResultDoctor.eventId;
+    calendarEventLink = calResultDoctor.eventLink;
+    // Don't override meetLink - we're using doctor's saved link
+  }
+
+  if (calResultPatient) {
+    patientCalendarEventId = calResultPatient.eventId;
+    patientCalendarEventLink = calResultPatient.eventLink;
+    if (validPatientToken !== patientGoogleAccessToken && patientId) {
+      await supabaseServer
+        .from('users')
+        .update({ google_access_token: validPatientToken })
+        .eq('id', patientId);
     }
   }
 
@@ -166,6 +188,10 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  if (patientId) {
+    await linkDoctorPatient(doctor.id, patientId)
+  }
+
   // Notify patient
   if (patientId) {
     const parts: string[] = [
@@ -176,9 +202,9 @@ export async function POST(req: NextRequest) {
 
     await supabaseServer.from('patient_notifications').insert({
       patient_id: patientId,
-      doctor_id:  doctor.doctorRowId,
+      doctor_id:  doctor.id, // Fixed: use users.id (doctor.id) instead of doctors.id
       title: 'Appointment Confirmed',
-      message: parts.join(' '),
+      message: parts.join('\n'), // Use newlines for better formatting
       type: 'appointment',
     })
   }
@@ -220,6 +246,21 @@ export async function PATCH(req: NextRequest) {
 
   if (!existing) return NextResponse.json({ error: 'Appointment not found' }, { status: 404 })
 
+  // If confirming an online appointment, check if doctor has a Google Meet link
+  if (status === 'Confirmed' && existing.mode === 'Online') {
+    const { data: doctorProfile } = await supabaseServer
+      .from('doctors')
+      .select('google_meet_link')
+      .eq('id', doctor.doctorRowId ?? doctor.id)
+      .single()
+
+    if (!doctorProfile?.google_meet_link) {
+      return NextResponse.json({ 
+        error: 'Please add your Google Meet link in your profile before accepting online appointments.' 
+      }, { status: 400 })
+    }
+  }
+
   let meetLink = existing.meet_link
   let calendarEventId = existing.calendar_event_id
   let calendarEventLink = existing.calendar_event_link
@@ -228,6 +269,18 @@ export async function PATCH(req: NextRequest) {
   let patientUserId: string | null = null  // users.id for notifications
 
   if (status === 'Confirmed') {
+    // Get doctor's saved Google Meet link
+    const { data: doctorProfile } = await supabaseServer
+      .from('doctors')
+      .select('google_meet_link')
+      .eq('id', doctor.doctorRowId ?? doctor.id)
+      .single()
+
+    // Use doctor's saved Meet link for online appointments
+    if (existing.mode === 'Online' && doctorProfile?.google_meet_link) {
+      meetLink = doctorProfile.google_meet_link
+    }
+
     let patientEmail: string | null = null
     let patientGoogleAccessToken: string | null = null
     let patientGoogleRefreshToken: string | null = null
@@ -256,7 +309,7 @@ export async function PATCH(req: NextRequest) {
         const attendees = [doctor.email, patientEmail].filter(Boolean) as string[]
         const calResult = await createCalendarEvent(accessToken, {
           summary: `${existing.type ?? 'Consultation'} — ${existing.patient_name}`,
-          description: `Medical appointment with Dr. ${doctor.full_name ?? 'Doctor'}.\nPatient: ${existing.patient_name}\nMode: ${existing.mode}`,
+          description: `Medical appointment with Dr. ${doctor.full_name ?? 'Doctor'}.\nPatient: ${existing.patient_name}\nMode: ${existing.mode}${meetLink ? `\n\nJoin Google Meet: ${meetLink}` : ''}`,
           date: existing.appointment_date,
           time: existing.appointment_time,
           durationMins: 30,
@@ -264,9 +317,7 @@ export async function PATCH(req: NextRequest) {
         })
         calendarEventId   = calResult.eventId
         calendarEventLink = calResult.eventLink
-        if (existing.mode === 'Online' && calResult.meetLink) {
-          meetLink = calResult.meetLink
-        }
+        // Don't override meetLink from auto-generated one - use doctor's saved link
       } catch (calErr) {
         console.error('[calendar] Failed to create doctor event on confirm:', calErr)
       }
@@ -279,7 +330,7 @@ export async function PATCH(req: NextRequest) {
           const attendees = [patientEmail, doctor.email].filter(Boolean) as string[]
           const calResult = await createCalendarEvent(validPatientToken, {
             summary: `${existing.type ?? 'Consultation'} — Dr. ${doctor.full_name ?? 'Doctor'}`,
-            description: `Confirmed appointment with Dr. ${doctor.full_name ?? 'Doctor'}.\nMode: ${existing.mode}${meetLink ? `\nJoin Meet: ${meetLink}` : ''}`,
+            description: `Confirmed appointment with Dr. ${doctor.full_name ?? 'Doctor'}.\nMode: ${existing.mode}${meetLink ? `\n\nJoin Google Meet: ${meetLink}` : ''}`,
             date: existing.appointment_date,
             time: existing.appointment_time,
             durationMins: 30,
@@ -315,6 +366,10 @@ export async function PATCH(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  if (status === 'Confirmed' && patientUserId) {
+    await linkDoctorPatient(doctor.id, patientUserId)
+  }
+
   // Notify patient — patient_notifications.patient_id = users.id
   if (patientUserId || existing.patient_id) {
     // If we didn't resolve patientUserId yet (e.g. status=Cancelled), resolve now
@@ -333,9 +388,9 @@ export async function PATCH(req: NextRequest) {
       }
       await supabaseServer.from('patient_notifications').insert({
         patient_id: patientUserId,
-        doctor_id:  doctor.doctorRowId,
+        doctor_id:  doctor.id, // Fixed: use users.id (doctor.id) instead of doctors.id
         title: `Appointment ${status}`,
-        message: parts.join(' '),
+        message: parts.join('\n'), // Use newlines for better formatting
         type: 'appointment',
       })
     }

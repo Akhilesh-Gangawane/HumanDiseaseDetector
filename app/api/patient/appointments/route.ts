@@ -24,10 +24,13 @@ export async function GET() {
   const patient = await getPatientRow(session.user.email)
   if (!patient) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+  if (!patient.patientRowId)
+    return NextResponse.json({ appointments: [] })
+
   const { data, error } = await supabaseServer
     .from('appointments')
     .select('*')
-    .eq('patient_id', patient.patientRowId ?? patient.id)
+    .eq('patient_id', patient.patientRowId)
     .order('appointment_date', { ascending: true })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -66,10 +69,11 @@ export async function POST(req: NextRequest) {
   if (!patient.patientRowId)
     return NextResponse.json({ error: 'Patient profile not found. Please complete your profile first.' }, { status: 400 })
 
-  // Try to get doctor email for calendar invite
+  // Try to get doctor email for calendar invite and resolve doctors.id
   let doctorEmail: string | null = null
   let doctorGoogleAccessToken: string | null = null
   let doctorGoogleRefreshToken: string | null = null
+  let doctorRowId: string | null = null // doctors.id for FK
   if (doctorId) {
     const { data: du } = await supabaseServer
       .from('users')
@@ -79,6 +83,14 @@ export async function POST(req: NextRequest) {
     doctorEmail              = du?.email              ?? null
     doctorGoogleAccessToken  = du?.google_access_token  ?? null
     doctorGoogleRefreshToken = du?.google_refresh_token ?? null
+
+    // Resolve doctors.id from users.id
+    const { data: doctorRow } = await supabaseServer
+      .from('doctors')
+      .select('id')
+      .eq('user_id', doctorId)
+      .single()
+    doctorRowId = doctorRow?.id ?? null
   }
 
   let calendarEventId: string | null = null
@@ -134,7 +146,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await supabaseServer
     .from('appointments')
     .insert({
-      doctor_id:    doctorId ?? null,
+      doctor_id:    doctorRowId ?? null,  // Use doctors.id (FK)
       doctor_name:  doctorName ?? null,
       patient_id:   patient.patientRowId,
       patient_name: patient.full_name ?? session.user.email,
@@ -155,7 +167,7 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Notify the doctor
+  // Notify the doctor - CRITICAL: Use users.id not doctors.id
   if (doctorId) {
     const parts: string[] = [
       `${patient.full_name ?? 'A patient'} has requested a ${type ?? 'Consultation'} on ${date} at ${time} (${mode ?? 'Online'}).`,
@@ -163,12 +175,17 @@ export async function POST(req: NextRequest) {
     if (reason) parts.push(`Reason: ${reason}`)
     if (doctorCalendarEventLink) parts.push(`Calendar event added to your Google Calendar: ${doctorCalendarEventLink}`)
 
-    await supabaseServer.from('doctor_notifications').insert({
+    // doctorId here is users.id, which is what doctor_notifications.doctor_id expects
+    const { error: notifError } = await supabaseServer.from('doctor_notifications').insert({
       doctor_id: doctorId,
       title: 'New Appointment Request',
       message: parts.join(' '),
       type: 'appointment',
     })
+
+    if (notifError) {
+      console.error('[notification] Failed to notify doctor:', notifError)
+    }
   }
 
   return NextResponse.json({
@@ -176,4 +193,65 @@ export async function POST(req: NextRequest) {
     calendarEventLink,
     doctorCalendarEventLink,
   })
+}
+
+// DELETE /api/patient/appointments — delete/cancel an appointment
+export async function DELETE(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const patient = await getPatientRow(session.user.email)
+  if (!patient || !patient.patientRowId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const { searchParams } = new URL(req.url)
+  const appointmentId = searchParams.get('id')
+
+  if (!appointmentId) return NextResponse.json({ error: 'Appointment ID required' }, { status: 400 })
+
+  // Verify the appointment belongs to this patient
+  const { data: appointment } = await supabaseServer
+    .from('appointments')
+    .select('id, status, patient_id, doctor_id')
+    .eq('id', appointmentId)
+    .eq('patient_id', patient.patientRowId)
+    .single()
+
+  if (!appointment) return NextResponse.json({ error: 'Appointment not found' }, { status: 404 })
+
+  // Only allow deletion of pending appointments
+  if (appointment.status !== 'Pending') {
+    return NextResponse.json({ 
+      error: 'Only pending appointments can be cancelled' 
+    }, { status: 400 })
+  }
+
+  // Update status to Cancelled instead of deleting (better for records)
+  const { error } = await supabaseServer
+    .from('appointments')
+    .update({ status: 'Cancelled' })
+    .eq('id', appointmentId)
+    .eq('patient_id', patient.patientRowId)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Notify the doctor about cancellation
+  if (appointment.doctor_id) {
+    // Get doctor's user_id from doctors table
+    const { data: doctorRow } = await supabaseServer
+      .from('doctors')
+      .select('user_id')
+      .eq('id', appointment.doctor_id)
+      .single()
+
+    if (doctorRow?.user_id) {
+      await supabaseServer.from('doctor_notifications').insert({
+        doctor_id: doctorRow.user_id,
+        title: 'Appointment Cancelled',
+        message: `${patient.full_name ?? 'A patient'} has cancelled their appointment.`,
+        type: 'appointment',
+      })
+    }
+  }
+
+  return NextResponse.json({ success: true, message: 'Appointment cancelled successfully' })
 }

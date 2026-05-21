@@ -27,7 +27,13 @@ export async function GET() {
       .eq('user_id', userRow.id)
       .single()
 
-    return NextResponse.json({ user: userRow, patient: patientRow ?? null })
+    return NextResponse.json({
+      user: userRow,
+      patient: patientRow ?? null,
+      // Flat convenience fields for realtime subscriptions
+      userId:       userRow.id,
+      patientRowId: patientRow?.id ?? null,
+    })
   }
 
   if (userRow.role === 'doctor') {
@@ -37,7 +43,13 @@ export async function GET() {
       .eq('user_id', userRow.id)
       .single()
 
-    return NextResponse.json({ user: userRow, doctor: doctorRow ?? null })
+    return NextResponse.json({
+      user: userRow,
+      doctor: doctorRow ?? null,
+      // Flat convenience fields for realtime subscriptions
+      userId:      userRow.id,
+      doctorRowId: doctorRow?.id ?? null,
+    })
   }
 
   return NextResponse.json({ user: userRow })
@@ -114,6 +126,9 @@ export async function PUT(req: NextRequest) {
       qualifications:   qualifications.length ? qualifications : null,
       medical_council:  d.medical_council  ?? null,
       registration_year: d.registration_year ?? null,
+      google_meet_link: d.google_meet_link ?? null,
+      consultation_fee: d.consultation_fee ?? null,
+      follow_up_fee:    d.follow_up_fee    ?? null,
     }
 
     // Only allow bumping to 'pending' from 'unverified' â€” never downgrade a verified doctor

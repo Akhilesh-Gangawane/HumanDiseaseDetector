@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Brain, MessageSquare, X } from 'lucide-react';
+import { Brain, MessageSquare } from 'lucide-react';
 import ChatAssistant from './ChatAssistant';
 import { ScrollLock } from '@/hooks/useScrollLock';
 
@@ -59,17 +59,16 @@ export default function FeatureCards() {
 
       {/* AI Chat Assistant Modal */}
       {showChat && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm animate-fade-in"
+          onClick={() => setShowChat(false)}
+        >
           <ScrollLock />
-          <div className="relative w-full max-w-2xl h-[90vh]">
-            <button
-              onClick={() => setShowChat(false)}
-              className="absolute top-4 right-4 z-10 p-2 bg-white/90 hover:bg-white rounded-full shadow-lg transition-colors"
-              aria-label="Close"
-            >
-              <X className="w-6 h-6 text-gray-700" />
-            </button>
-            <ChatAssistant />
+          <div
+            className="relative w-full sm:max-w-2xl h-[85dvh] sm:h-[90vh] flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
+            <ChatAssistant onClose={() => setShowChat(false)} />
           </div>
         </div>
       )}

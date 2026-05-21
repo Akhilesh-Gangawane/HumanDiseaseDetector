@@ -65,11 +65,45 @@ export default function PredictionForm({ onClose }: PredictionFormProps) {
       }
 
       const data = await res.json();
-      setResult({
+      const predResult = {
         prediction: data.prediction,
         confidence: Math.round(data.confidence * 100),
         method: data.method ?? 'Deep Residual Neural Network',
-      });
+      };
+      setResult(predResult);
+
+      // Save to DB so doctor can see it and patient has history
+      try {
+        const saveRes = await fetch('/api/patient/predictions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            disease: predResult.prediction,
+            confidence: predResult.confidence,
+            symptoms: selected.map(s => s.display),
+            explanation: `${predResult.method} · ${selected.length} symptoms`,
+          }),
+        });
+        
+        if (!saveRes.ok) {
+          const saveErr = await saveRes.json().catch(() => ({}));
+          console.error('Failed to save prediction to health records:', saveErr);
+          
+          // Show user-friendly error message
+          if (saveRes.status === 401) {
+            setError('Prediction successful, but you need to be logged in to save it to your health records. Please sign in.');
+          } else {
+            setError(`Prediction successful, but failed to save to records: ${saveErr.error || 'Unknown error'}. You may need to sign in.`);
+          }
+        } else {
+          console.log('✓ Prediction saved successfully to health records');
+          // Clear any previous errors since save was successful
+          setError(null);
+        }
+      } catch (saveError) {
+        console.error('Error saving prediction to health records:', saveError);
+        setError('Prediction successful, but could not save to health records. Please check your connection and try again.');
+      }
     } catch (err) {
       if (err instanceof TypeError && err.message === 'Failed to fetch') {
         setError('Cannot connect to prediction API. Make sure the FastAPI server is running:\n  cd Human-Health_model && python -m uvicorn app:app --port 8000');

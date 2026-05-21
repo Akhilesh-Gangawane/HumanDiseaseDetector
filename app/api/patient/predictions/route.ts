@@ -39,7 +39,10 @@ export async function POST(req: NextRequest) {
     })
     .select().single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[POST /api/patient/predictions] Supabase insert error:', error)
+    return NextResponse.json({ error: error.message ?? error.details ?? 'Database error' }, { status: 500 })
+  }
 
   // Notify all doctors assigned to this patient
   const { data: links } = await supabaseServer

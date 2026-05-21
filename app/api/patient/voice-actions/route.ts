@@ -347,10 +347,9 @@ async function executeMedicineOrder(action: ParsedAction, patient: PatientCtx): 
     .from('medicine_orders')
     .insert({
       patient_id:   patient.id,   // medicine_orders.patient_id = users.id
-      patient_name: patient.full_name ?? patient.email,
       items:        meds.map(name => ({ name, quantity: 1, price: 0 })),
       total:        0,
-      status:       'Confirmed',
+      status:       'pending',
     })
     .select().single()
 

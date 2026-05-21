@@ -1,81 +1,33 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { Bell, Clock, AlertCircle, Trash2, CheckCircle2, ArrowLeft, Pill, Calendar, FileText, Loader2 } from 'lucide-react';
 import PatientNavbar from '@/components/patient/PatientNavbar';
 import Footer from '@/components/patient/Footer';
 import NeuralNetworkContainer from '@/components/ui/NeuralNetworkContainer';
 import { useRouter } from 'next/navigation';
-
-interface Notification {
-  id: string;
-  type: 'alert' | 'appointment' | 'result' | 'prescription' | 'general';
-  title: string;
-  message: string;
-  time: string;
-  read: boolean;
-}
+import { usePatientState } from '@/components/patient/PatientStateContext';
 
 export default function PatientNotificationsPage() {
   const router = useRouter();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    notifications,
+    unreadCount,
+    loadingNotifs: loading,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    clearAll,
+  } = usePatientState();
 
-  useEffect(() => {
-    fetch('/api/patient/notifications')
-      .then(r => r.json())
-      .then(d => setNotifications(d.notifications ?? []))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const getIcon = (type: Notification['type']) => {
+  const getIcon = (type: string) => {
     switch (type) {
-      case 'alert': return <AlertCircle className="w-6 h-6 text-red-500" />;
-      case 'appointment': return <Calendar className="w-6 h-6 text-blue-500" />;
-      case 'result': return <FileText className="w-6 h-6 text-green-500" />;
-      case 'prescription': return <Pill className="w-6 h-6 text-purple-500" />;
-      default: return <Bell className="w-6 h-6 text-teal-500" />;
+      case 'alert':        return <AlertCircle className="w-6 h-6 text-red-500" />;
+      case 'appointment':  return <Calendar    className="w-6 h-6 text-blue-500" />;
+      case 'result':       return <FileText    className="w-6 h-6 text-green-500" />;
+      case 'prescription': return <Pill        className="w-6 h-6 text-purple-500" />;
+      default:             return <Bell        className="w-6 h-6 text-teal-500" />;
     }
   };
-
-  const markAsRead = async (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-    await fetch('/api/patient/notifications', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, read: true }),
-    });
-  };
-
-  const deleteNotification = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setNotifications(prev => prev.filter(n => n.id !== id));
-    await fetch('/api/patient/notifications', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, delete: true }),
-    });
-  };
-
-  const markAllAsRead = async () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    await fetch('/api/patient/notifications', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ markAllRead: true }),
-    });
-  };
-
-  const clearAll = async () => {
-    setNotifications([]);
-    await fetch('/api/patient/notifications', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clearAll: true }),
-    });
-  };
-
-  const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
     <NeuralNetworkContainer className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-white">
@@ -96,8 +48,15 @@ export default function PatientNotificationsPage() {
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text text-transparent mb-1">
               Notifications
             </h1>
-            <p className="text-gray-600">
-              {unreadCount > 0 ? `${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}` : 'All caught up'}
+            <p className="text-gray-600 flex items-center gap-2">
+              {unreadCount > 0
+                ? <><span className="inline-flex items-center justify-center w-5 h-5 bg-blue-500 text-white text-xs font-bold rounded-full">{unreadCount}</span> unread notification{unreadCount > 1 ? 's' : ''}</>
+                : 'All caught up'}
+              {/* Live indicator */}
+              <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium">
+                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                Live
+              </span>
             </p>
           </div>
           {notifications.length > 0 && (
@@ -131,7 +90,7 @@ export default function PatientNotificationsPage() {
                 <div className="text-center py-16 text-gray-500">
                   <Bell className="w-14 h-14 mx-auto mb-4 opacity-20" />
                   <p className="text-lg font-medium">No notifications</p>
-                  <p className="text-sm mt-1">Your doctor&apos;s updates will appear here.</p>
+                  <p className="text-sm mt-1">Your doctor&apos;s updates will appear here in real time.</p>
                 </div>
               ) : notifications.map((notif) => (
                 <div
@@ -150,7 +109,7 @@ export default function PatientNotificationsPage() {
                     <h3 className={`font-semibold ${notif.read ? 'text-gray-700' : 'text-gray-900'}`}>
                       {notif.title}
                     </h3>
-                    <p className="text-gray-600 mt-1 text-sm">{notif.message}</p>
+                    <p className="text-gray-600 mt-1 text-sm whitespace-pre-line">{notif.message}</p>
                     <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
                       <Clock className="w-3.5 h-3.5" />
                       {notif.time}
@@ -162,7 +121,7 @@ export default function PatientNotificationsPage() {
                     )}
                     <button
                       type="button"
-                      onClick={(e) => deleteNotification(notif.id, e)}
+                      onClick={(e) => { e.stopPropagation(); deleteNotification(notif.id); }}
                       className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
                       aria-label="Delete notification"
                     >

@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { Menu, X, User, Settings, LogOut, Bell, Shield, ChevronDown, Home, Stethoscope, Brain, FileText, Calendar } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
+import { usePatientStateSafe } from '@/components/patient/PatientStateContext';
 
 const NAV_LINKS = [
   { label: 'Home', href: '/patient-dashboard', icon: Home },
@@ -22,6 +23,7 @@ export default function PatientNavbar() {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, status } = useSession();
+  const { unreadCount } = usePatientStateSafe();
 
   const userName = status === 'loading' ? '...' : (session?.user?.name ?? 'Guest');
   const userEmail = session?.user?.email ?? '';
@@ -96,7 +98,11 @@ export default function PatientNavbar() {
               className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <Bell className="w-5 h-5 text-gray-600" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </button>
 
             {/* Profile dropdown */}
@@ -203,7 +209,11 @@ export default function PatientNavbar() {
               className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             >
               <Bell className="w-4 h-4" /> Notifications
-              <span className="ml-auto w-2 h-2 bg-red-500 rounded-full" />
+              {unreadCount > 0 && (
+                <span className="ml-auto min-w-[20px] h-5 px-1 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </button>
 
             <hr className="border-gray-100 my-2" />

@@ -37,7 +37,7 @@ export default function DoctorModel3D() {
         <pointLight position={[-5, 5, -5]} intensity={0.5} color="#60a5fa" />
         <Suspense fallback={null}>
           <Model />
-          <Environment preset="city" />
+          <Environment preset="sunset" />
           <ContactShadows
             position={[0, -1.5, 0]}
             opacity={0.4}

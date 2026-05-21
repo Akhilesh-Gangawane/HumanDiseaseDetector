@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { User, Mail, Phone, MapPin, Award, Calendar, Check, Edit2, Camera, Loader2, ShieldCheck, ShieldAlert, Clock, Shield } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Award, Calendar, Check, Edit2, Camera, Loader2, ShieldCheck, ShieldAlert, Clock, Shield, DollarSign, Video, Plus, Trash2, ExternalLink, Navigation, Copy } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
 interface DoctorProfile {
@@ -18,6 +18,19 @@ interface DoctorProfile {
   medicalCouncil: string;
   registrationYear: string;
   rejectionReason: string;
+  googleMeetLink: string;
+  consultationFee: string;
+  followUpFee: string;
+}
+
+interface TreatmentPrice {
+  id?: string;
+  treatment_name: string;
+  treatment_category: string;
+  price: string;
+  duration_minutes: string;
+  description: string;
+  is_active: boolean;
 }
 
 const defaultProfile: DoctorProfile = {
@@ -34,6 +47,9 @@ const defaultProfile: DoctorProfile = {
   medicalCouncil: '',
   registrationYear: '',
   rejectionReason: '',
+  googleMeetLink: '',
+  consultationFee: '',
+  followUpFee: '',
 };
 
 export default function ProfilePage() {
@@ -44,11 +60,30 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
 
+  // Treatment prices state
+  const [treatmentPrices, setTreatmentPrices] = useState<TreatmentPrice[]>([]);
+  const [editingTreatments, setEditingTreatments] = useState(false);
+  const [newTreatment, setNewTreatment] = useState<TreatmentPrice>({
+    treatment_name: '',
+    treatment_category: '',
+    price: '',
+    duration_minutes: '',
+    description: '',
+    is_active: true,
+  });
+
   // Avatar state
   const [avatarUrl, setAvatarUrl] = useState<string>('');
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Location state
+  const [gettingLocation, setGettingLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  // Copy link state
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -97,10 +132,19 @@ export default function ProfilePage() {
         medicalCouncil: doctorRow?.medical_council ?? '',
         registrationYear: doctorRow?.registration_year ? `${doctorRow.registration_year}` : '',
         rejectionReason: doctorRow?.rejection_reason ?? '',
+        googleMeetLink: doctorRow?.google_meet_link ?? '',
+        consultationFee: doctorRow?.consultation_fee ? `${doctorRow.consultation_fee}` : '',
+        followUpFee: doctorRow?.follow_up_fee ? `${doctorRow.follow_up_fee}` : '',
       };
       setProfile(merged);
       setEditedProfile(merged);
       setAvatarUrl(merged.avatarUrl);
+      
+      // Fetch treatment prices
+      if (doctorRow?.id) {
+        fetchTreatmentPrices(doctorRow.id);
+      }
+      
       setLoading(false);
     };
     fetchProfile();
@@ -109,6 +153,171 @@ export default function ProfilePage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEditedProfile({ ...editedProfile, [e.target.name]: e.target.value });
   };
+
+  const handleGetLiveLocation = () => {
+    setLocationError(null);
+    setGettingLocation(true);
+
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is not supported by your browser');
+      setGettingLocation(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const locationString = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+        setEditedProfile({ ...editedProfile, location: locationString });
+        setGettingLocation(false);
+      },
+      (error) => {
+        let errorMessage = 'Unable to retrieve location';
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = 'Location permission denied';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = 'Location information unavailable';
+            break;
+          case error.TIMEOUT:
+            errorMessage = 'Location request timed out';
+            break;
+        }
+        setLocationError(errorMessage);
+        setGettingLocation(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
+  };
+
+  const handleCopyMeetLink = async () => {
+    if (!data.googleMeetLink) return;
+    
+    try {
+      await navigator.clipboard.writeText(data.googleMeetLink);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+    }
+  };
+
+  const fetchTreatmentPrices = async (doctorId: string) => {
+    try {
+      const res = await fetch(`/api/doctor/treatment-prices?doctorId=${doctorId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setTreatmentPrices(data.prices || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch treatment prices:', error);
+    }
+  };
+
+  const handleAddTreatment = async () => {
+    if (!newTreatment.treatment_name || !newTreatment.price) {
+      alert('Please fill in treatment name and price');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/doctor/treatment-prices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newTreatment),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setTreatmentPrices([...treatmentPrices, data.price]);
+        setNewTreatment({
+          treatment_name: '',
+          treatment_category: '',
+          price: '',
+          duration_minutes: '',
+          description: '',
+          is_active: true,
+        });
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+      }
+    } catch (error) {
+      console.error('Failed to add treatment:', error);
+    }
+  };
+
+  const handleDeleteTreatment = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this treatment?')) return;
+
+    try {
+      const res = await fetch(`/api/doctor/treatment-prices?id=${id}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        setTreatmentPrices(treatmentPrices.filter(t => t.id !== id));
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+      }
+    } catch (error) {
+      console.error('Failed to delete treatment:', error);
+    }
+  };
+
+  const handleToggleTreatmentStatus = async (id: string, currentStatus: boolean) => {
+    try {
+      const res = await fetch('/api/doctor/treatment-prices', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, is_active: !currentStatus }),
+      });
+
+      if (res.ok) {
+        setTreatmentPrices(treatmentPrices.map(t => 
+          t.id === id ? { ...t, is_active: !currentStatus } : t
+        ));
+      }
+    } catch (error) {
+      console.error('Failed to update treatment status:', error);
+    }
+  };
+
+  // Calculate profile completion percentage
+  const calculateProfileCompletion = () => {
+    const fields = [
+      profile.name,
+      profile.specialty,
+      profile.email,
+      profile.phone,
+      profile.location,
+      profile.license,
+      profile.experience,
+      profile.certifications,
+      profile.medicalCouncil,
+      profile.registrationYear,
+      profile.googleMeetLink,
+      profile.consultationFee,
+      profile.followUpFee,
+      treatmentPrices.length > 0 ? 'treatments' : '',
+    ];
+
+    const filledFields = fields.filter(field => field && field.toString().trim() !== '').length;
+    const totalFields = fields.length;
+    const percentage = Math.round((filledFields / totalFields) * 100);
+
+    return {
+      percentage,
+      filledFields,
+      totalFields,
+    };
+  };
+
+  const profileCompletion = calculateProfileCompletion();
 
   const handleSave = async () => {
     setProfile(editedProfile);
@@ -128,6 +337,9 @@ export default function ProfilePage() {
           certifications:      editedProfile.certifications,
           medical_council:     editedProfile.medicalCouncil || null,
           registration_year:   editedProfile.registrationYear ? parseInt(editedProfile.registrationYear) || null : null,
+          google_meet_link:    editedProfile.googleMeetLink || null,
+          consultation_fee:    editedProfile.consultationFee ? parseFloat(editedProfile.consultationFee) || null : null,
+          follow_up_fee:       editedProfile.followUpFee ? parseFloat(editedProfile.followUpFee) || null : null,
           // If they just added a registration number and were unverified, bump to pending
           ...(editedProfile.license && editedProfile.medicalCouncil && profile.verificationStatus === 'unverified'
             ? { verification_status: 'pending' }
@@ -150,9 +362,64 @@ export default function ProfilePage() {
 
   const data = isEditing ? editedProfile : profile;
 
+  // Get completion color based on percentage
+  const getCompletionColor = (percentage: number) => {
+    if (percentage >= 80) return 'text-green-600';
+    if (percentage >= 50) return 'text-amber-600';
+    return 'text-red-600';
+  };
+
+  const getCompletionBgColor = (percentage: number) => {
+    if (percentage >= 80) return 'bg-green-500';
+    if (percentage >= 50) return 'bg-amber-500';
+    return 'bg-red-500';
+  };
+
   return (
     <div className="p-8">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Profile</h1>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Profile</h1>
+        
+        {/* Profile Completion Indicator */}
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <p className="text-sm text-gray-600">Profile Completion</p>
+            <p className={`text-2xl font-bold ${getCompletionColor(profileCompletion.percentage)}`}>
+              {profileCompletion.percentage}%
+            </p>
+          </div>
+          <div className="relative w-20 h-20">
+            <svg className="transform -rotate-90 w-20 h-20">
+              <circle
+                cx="40"
+                cy="40"
+                r="32"
+                stroke="currentColor"
+                strokeWidth="6"
+                fill="transparent"
+                className="text-gray-200"
+              />
+              <circle
+                cx="40"
+                cy="40"
+                r="32"
+                stroke="currentColor"
+                strokeWidth="6"
+                fill="transparent"
+                strokeDasharray={`${2 * Math.PI * 32}`}
+                strokeDashoffset={`${2 * Math.PI * 32 * (1 - profileCompletion.percentage / 100)}`}
+                className={getCompletionBgColor(profileCompletion.percentage)}
+                strokeLinecap="round"
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className={`text-sm font-bold ${getCompletionColor(profileCompletion.percentage)}`}>
+                {profileCompletion.percentage}%
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {saved && (
         <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-2">
@@ -291,19 +558,40 @@ export default function ProfilePage() {
                   <div className="flex-1">
                     <p className="text-sm text-gray-600 mb-1">{label}</p>
                     {isEditing ? (
-                      <>
-                        <label htmlFor={`profile-${field}`} className="sr-only">{label}</label>
-                        <input
-                          id={`profile-${field}`}
-                          type={type}
-                          name={field}
-                          value={editedProfile[field as keyof DoctorProfile]}
-                          onChange={handleChange}
-                          className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1">
+                          <label htmlFor={`profile-${field}`} className="sr-only">{label}</label>
+                          <input
+                            id={`profile-${field}`}
+                            type={type}
+                            name={field}
+                            value={editedProfile[field as keyof DoctorProfile]}
+                            onChange={handleChange}
+                            className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        {field === 'location' && (
+                          <button
+                            type="button"
+                            onClick={handleGetLiveLocation}
+                            disabled={gettingLocation}
+                            className="flex items-center gap-2 px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                            title="Get current location"
+                          >
+                            {gettingLocation ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Navigation className="w-4 h-4" />
+                            )}
+                            {gettingLocation ? 'Getting...' : 'Live Location'}
+                          </button>
+                        )}
+                      </div>
                     ) : (
                       <p className="font-semibold text-gray-900">{data[field as keyof DoctorProfile] || '—'}</p>
+                    )}
+                    {field === 'location' && locationError && isEditing && (
+                      <p className="text-xs text-red-500 mt-1">{locationError}</p>
                     )}
                   </div>
                 </div>
@@ -368,6 +656,310 @@ export default function ProfilePage() {
                 {data.verificationStatus === 'rejected'   && `Verification unsuccessful. ${data.rejectionReason ? `Reason: ${data.rejectionReason}` : 'Please update your details and contact support.'}`}
                 {data.verificationStatus === 'unverified' && 'Not yet submitted. Add your registration number and save to submit for verification.'}
               </p>
+            </div>
+          </div>
+
+          {/* Consultation Fees & Google Meet */}
+          <div className="bg-white rounded-2xl shadow-lg p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-6">Consultation Settings</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <DollarSign className="w-5 h-5 text-green-600" />
+                  <p className="text-sm text-gray-600">Consultation Fee (₹)</p>
+                </div>
+                {isEditing ? (
+                  <>
+                    <label htmlFor="consultationFee" className="sr-only">Consultation Fee</label>
+                    <input
+                      id="consultationFee"
+                      type="number"
+                      name="consultationFee"
+                      value={editedProfile.consultationFee}
+                      onChange={handleChange}
+                      placeholder="e.g., 500"
+                      className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </>
+                ) : (
+                  <p className="font-semibold text-gray-900">
+                    {data.consultationFee ? `₹${data.consultationFee}` : '—'}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <DollarSign className="w-5 h-5 text-blue-600" />
+                  <p className="text-sm text-gray-600">Follow-up Fee (₹)</p>
+                </div>
+                {isEditing ? (
+                  <>
+                    <label htmlFor="followUpFee" className="sr-only">Follow-up Fee</label>
+                    <input
+                      id="followUpFee"
+                      type="number"
+                      name="followUpFee"
+                      value={editedProfile.followUpFee}
+                      onChange={handleChange}
+                      placeholder="e.g., 300"
+                      className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </>
+                ) : (
+                  <p className="font-semibold text-gray-900">
+                    {data.followUpFee ? `₹${data.followUpFee}` : '—'}
+                  </p>
+                )}
+              </div>
+
+              <div className="md:col-span-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <Video className="w-5 h-5 text-purple-600" />
+                  <p className="text-sm text-gray-600">Google Meet Link</p>
+                </div>
+                {isEditing ? (
+                  <>
+                    <div className="flex items-center gap-2 mb-2">
+                      <label htmlFor="googleMeetLink" className="sr-only">Google Meet Link</label>
+                      <input
+                        id="googleMeetLink"
+                        type="url"
+                        name="googleMeetLink"
+                        value={editedProfile.googleMeetLink}
+                        onChange={handleChange}
+                        placeholder="https://meet.google.com/your-meeting-link"
+                        className="flex-1 px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <a
+                        href="https://meet.google.com/new"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all shadow-md hover:shadow-lg whitespace-nowrap"
+                      >
+                        <Video className="w-4 h-4" />
+                        Create New Meeting
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Click "Create New Meeting" to start a Google Meet, then copy and paste the link here
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    {data.googleMeetLink ? (
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                        <a
+                          href={data.googleMeetLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 font-semibold text-blue-600 hover:text-blue-700 hover:underline break-all"
+                        >
+                          {data.googleMeetLink}
+                        </a>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handleCopyMeetLink}
+                            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors shadow-sm hover:shadow whitespace-nowrap"
+                          >
+                            {linkCopied ? (
+                              <>
+                                <Check className="w-4 h-4 text-green-600" />
+                                <span className="text-green-600">Copied!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-4 h-4" />
+                                Copy Link
+                              </>
+                            )}
+                          </button>
+                          <a
+                            href={data.googleMeetLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors shadow-md hover:shadow-lg whitespace-nowrap"
+                          >
+                            <Video className="w-4 h-4" />
+                            Open Meeting
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="font-semibold text-gray-900">—</p>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Treatment Prices */}
+          <div className="bg-white rounded-2xl shadow-lg p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-gray-900">Treatment Pricing</h3>
+              <button
+                type="button"
+                onClick={() => setEditingTreatments(!editingTreatments)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                {editingTreatments ? <Check className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
+                {editingTreatments ? 'Done' : 'Manage'}
+              </button>
+            </div>
+
+            {/* Add New Treatment Form */}
+            {editingTreatments && (
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                <h4 className="font-semibold text-gray-900 mb-3">Add New Treatment</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="treatment_name" className="text-xs text-gray-600 mb-1 block">
+                      Treatment Name *
+                    </label>
+                    <input
+                      id="treatment_name"
+                      type="text"
+                      value={newTreatment.treatment_name}
+                      onChange={(e) => setNewTreatment({ ...newTreatment, treatment_name: e.target.value })}
+                      placeholder="e.g., General Checkup"
+                      className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="treatment_category" className="text-xs text-gray-600 mb-1 block">
+                      Category
+                    </label>
+                    <input
+                      id="treatment_category"
+                      type="text"
+                      value={newTreatment.treatment_category}
+                      onChange={(e) => setNewTreatment({ ...newTreatment, treatment_category: e.target.value })}
+                      placeholder="e.g., Cardiology"
+                      className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="price" className="text-xs text-gray-600 mb-1 block">
+                      Price (₹) *
+                    </label>
+                    <input
+                      id="price"
+                      type="number"
+                      value={newTreatment.price}
+                      onChange={(e) => setNewTreatment({ ...newTreatment, price: e.target.value })}
+                      placeholder="e.g., 800"
+                      className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="duration_minutes" className="text-xs text-gray-600 mb-1 block">
+                      Duration (minutes)
+                    </label>
+                    <input
+                      id="duration_minutes"
+                      type="number"
+                      value={newTreatment.duration_minutes}
+                      onChange={(e) => setNewTreatment({ ...newTreatment, duration_minutes: e.target.value })}
+                      placeholder="e.g., 30"
+                      className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label htmlFor="description" className="text-xs text-gray-600 mb-1 block">
+                      Description
+                    </label>
+                    <input
+                      id="description"
+                      type="text"
+                      value={newTreatment.description}
+                      onChange={(e) => setNewTreatment({ ...newTreatment, description: e.target.value })}
+                      placeholder="Brief description of the treatment"
+                      className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddTreatment}
+                  className="mt-3 flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                >
+                  <Plus className="w-4 h-4" /> Add Treatment
+                </button>
+              </div>
+            )}
+
+            {/* Treatment List */}
+            <div className="space-y-3">
+              {treatmentPrices.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">
+                  No treatments added yet. Click "Manage" to add your treatment pricing.
+                </p>
+              ) : (
+                treatmentPrices.map((treatment) => (
+                  <div
+                    key={treatment.id}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      treatment.is_active
+                        ? 'bg-white border-blue-200'
+                        : 'bg-gray-50 border-gray-200 opacity-60'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-semibold text-gray-900">{treatment.treatment_name}</h4>
+                          {treatment.treatment_category && (
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
+                              {treatment.treatment_category}
+                            </span>
+                          )}
+                          {!treatment.is_active && (
+                            <span className="px-2 py-0.5 bg-gray-200 text-gray-600 text-xs rounded-full">
+                              Inactive
+                            </span>
+                          )}
+                        </div>
+                        {treatment.description && (
+                          <p className="text-sm text-gray-600 mb-2">{treatment.description}</p>
+                        )}
+                        <div className="flex items-center gap-4 text-sm">
+                          <span className="font-semibold text-green-600">₹{treatment.price}</span>
+                          {treatment.duration_minutes && (
+                            <span className="text-gray-500">{treatment.duration_minutes} mins</span>
+                          )}
+                        </div>
+                      </div>
+                      {editingTreatments && (
+                        <div className="flex items-center gap-2 ml-4">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleTreatmentStatus(treatment.id!, treatment.is_active)}
+                            className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                              treatment.is_active
+                                ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                                : 'bg-green-100 text-green-700 hover:bg-green-200'
+                            }`}
+                          >
+                            {treatment.is_active ? 'Deactivate' : 'Activate'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTreatment(treatment.id!)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            aria-label="Delete treatment"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
