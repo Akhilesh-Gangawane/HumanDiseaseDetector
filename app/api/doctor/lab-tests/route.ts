@@ -12,20 +12,9 @@ async function getDoctorRow(email: string) {
     .from('users').select('id, role, full_name').eq('email', email).single()
   if (!data || data.role !== 'doctor') return null
 
-  let { data: doctorRow } = await supabaseServer
+  // Always re-fetch to get the latest committed row
+  const { data: doctorRow } = await supabaseServer
     .from('doctors').select('id').eq('user_id', data.id).maybeSingle()
-
-  if (!doctorRow) {
-    const { data: created, error: createError } = await supabaseServer
-      .from('doctors')
-      .insert({ user_id: data.id, verification_status: 'unverified' })
-      .select('id')
-      .single()
-    if (createError) {
-      console.error('[getDoctorRow] auto-create failed:', createError.message)
-    }
-    doctorRow = created ?? null
-  }
 
   return { ...data, doctorRowId: doctorRow?.id ?? null }
 }
@@ -88,8 +77,9 @@ export async function POST(req: NextRequest) {
   if (!doctor) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   if (!doctor.doctorRowId) {
+    console.error('[lab-tests POST] doctorRowId is null for user:', doctor.id)
     return NextResponse.json(
-      { error: 'Doctor profile not found. Please complete your doctor registration first.' },
+      { error: 'Doctor profile not found in the doctors table. Please ensure your doctor account is fully set up.' },
       { status: 400 },
     )
   }

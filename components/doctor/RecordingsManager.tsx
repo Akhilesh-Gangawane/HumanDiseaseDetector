@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Video, Plus, Trash2, Eye, EyeOff, Loader2, Link2, Clock, Calendar, FileVideo } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Video, Plus, Trash2, Eye, EyeOff, Loader2, Link2, Clock, Calendar, FileVideo, Upload, X, CheckCircle2 } from 'lucide-react';
 import { useDoctorState } from './DoctorStateContext';
 
 interface Recording {
@@ -17,6 +17,8 @@ interface Recording {
   appointments?: { patient_name: string; date: string; time: string };
 }
 
+type UploadState = 'idle' | 'uploading' | 'done' | 'error';
+
 export default function RecordingsManager() {
   const { appointments } = useDoctorState();
   const [recordings, setRecordings] = useState<Recording[]>([]);
@@ -31,6 +33,14 @@ export default function RecordingsManager() {
     notes: '',
   });
 
+  // File upload state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadState, setUploadState] = useState<UploadState>('idle');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadedFileName, setUploadedFileName] = useState('');
+  const [uploadError, setUploadError] = useState('');
+  const [isDragOver, setIsDragOver] = useState(false);
+
   useEffect(() => {
     fetch('/api/doctor/recordings')
       .then(r => r.json())
@@ -39,6 +49,81 @@ export default function RecordingsManager() {
   }, []);
 
   const confirmedOnlineAppts = appointments.filter(a => a.mode === 'Online' && a.status === 'Confirmed');
+
+  const uploadFile = useCallback(async (file: File) => {
+    const allowed = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
+    if (!allowed.includes(file.type)) {
+      setUploadError('Invalid file type. Please upload an MP4, WebM, MOV, or AVI file.');
+      setUploadState('error');
+      return;
+    }
+    if (file.size > 500 * 1024 * 1024) {
+      setUploadError('File too large. Maximum size is 500 MB.');
+      setUploadState('error');
+      return;
+    }
+
+    setUploadState('uploading');
+    setUploadProgress(0);
+    setUploadError('');
+    setUploadedFileName(file.name);
+
+    // Simulate progress while uploading (XHR for real progress tracking)
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      // Use XHR to get upload progress
+      const url = await new Promise<string>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/doctor/recordings/upload');
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            setUploadProgress(Math.round((e.loaded / e.total) * 100));
+          }
+        };
+        xhr.onload = () => {
+          if (xhr.status === 200) {
+            const data = JSON.parse(xhr.responseText);
+            resolve(data.url);
+          } else {
+            const data = JSON.parse(xhr.responseText);
+            reject(new Error(data.error ?? 'Upload failed'));
+          }
+        };
+        xhr.onerror = () => reject(new Error('Network error during upload'));
+        xhr.send(formData);
+      });
+
+      setForm(prev => ({ ...prev, recordingUrl: url }));
+      setUploadProgress(100);
+      setUploadState('done');
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed');
+      setUploadState('error');
+    }
+  }, []);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) uploadFile(file);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) uploadFile(file);
+  };
+
+  const clearUpload = () => {
+    setUploadState('idle');
+    setUploadProgress(0);
+    setUploadedFileName('');
+    setUploadError('');
+    setForm(prev => ({ ...prev, recordingUrl: '' }));
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,6 +150,7 @@ export default function RecordingsManager() {
       const { recording } = await res.json();
       setRecordings(prev => [recording, ...prev]);
       setForm({ appointmentId: '', title: '', recordingUrl: '', durationMins: '', notes: '' });
+      clearUpload();
       setShowForm(false);
     }
     setSaving(false);
@@ -107,7 +193,7 @@ export default function RecordingsManager() {
         </div>
         <button
           type="button"
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => { setShowForm(!showForm); if (showForm) clearUpload(); }}
           className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-sm font-semibold rounded-xl hover:shadow-lg hover:-translate-y-0.5 transition-all"
         >
           <Plus className="w-4 h-4" />
@@ -150,16 +236,125 @@ export default function RecordingsManager() {
               </div>
             </div>
 
+            {/* Google Meet Recording Upload */}
             <div>
-              <label htmlFor="rec-url" className="block text-sm font-semibold text-gray-700 mb-1">Recording URL</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Google Meet Recording
+              </label>
+
+              {/* Drag-and-drop upload area */}
+              {uploadState === 'idle' && (
+                <>
+                  <input
+                    ref={fileInputRef}
+                    id="meet-recording-upload"
+                    type="file"
+                    accept="video/mp4,video/webm,video/quicktime,video/x-msvideo"
+                    className="sr-only"
+                    onChange={handleFileChange}
+                  />
+                  <label
+                    htmlFor="meet-recording-upload"
+                    onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
+                    onDragLeave={() => setIsDragOver(false)}
+                    onDrop={handleDrop}
+                    className={`flex flex-col items-center justify-center gap-3 w-full px-6 py-8 border-2 border-dashed rounded-2xl cursor-pointer transition-all select-none ${
+                      isDragOver
+                        ? 'border-indigo-400 bg-indigo-50'
+                        : 'border-gray-200 bg-gray-50 hover:border-indigo-300 hover:bg-indigo-50/50'
+                    }`}
+                  >
+                    <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
+                      <Upload className="w-6 h-6 text-indigo-500" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-semibold text-gray-700">
+                        Upload Google Meet Recording
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Drag &amp; drop or click to browse — MP4, WebM, MOV, AVI · Max 500 MB
+                      </p>
+                    </div>
+                  </label>
+                </>
+              )}
+
+              {/* Uploading progress */}
+              {uploadState === 'uploading' && (
+                <div className="w-full px-5 py-4 border border-indigo-200 bg-indigo-50 rounded-2xl space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-indigo-700 truncate max-w-[70%]">{uploadedFileName}</span>
+                    <span className="text-indigo-500 font-semibold">{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-indigo-100 rounded-full h-2">
+                    <div
+                      className="bg-indigo-500 h-2 rounded-full transition-all duration-300"
+                      // eslint-disable-next-line react/forbid-dom-props
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-indigo-400 flex items-center gap-1.5">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Uploading recording…
+                  </p>
+                </div>
+              )}
+
+              {/* Upload success */}
+              {uploadState === 'done' && (
+                <div className="w-full px-5 py-4 border border-green-200 bg-green-50 rounded-2xl flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-green-700 truncate">{uploadedFileName}</p>
+                      <p className="text-xs text-green-500">Uploaded successfully</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={clearUpload}
+                    className="p-1.5 rounded-lg hover:bg-green-100 text-green-600 transition-colors shrink-0"
+                    aria-label="Remove uploaded file"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              {/* Upload error */}
+              {uploadState === 'error' && (
+                <div className="w-full px-5 py-4 border border-red-200 bg-red-50 rounded-2xl flex items-center justify-between gap-3">
+                  <p className="text-sm text-red-600">{uploadError}</p>
+                  <button
+                    type="button"
+                    onClick={clearUpload}
+                    className="p-1.5 rounded-lg hover:bg-red-100 text-red-500 transition-colors shrink-0"
+                    aria-label="Dismiss error"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              {/* Divider */}
+              <div className="flex items-center gap-3 my-3">
+                <div className="flex-1 h-px bg-gray-200" />
+                <span className="text-xs text-gray-400 font-medium">or paste a link</span>
+                <div className="flex-1 h-px bg-gray-200" />
+              </div>
+
+              {/* Manual URL input */}
               <input
-                id="rec-url" type="url" required
-                placeholder="https://drive.google.com/... or https://..."
+                id="rec-url"
+                type="url"
+                required={uploadState !== 'done'}
+                placeholder="https://drive.google.com/... or https://meet.google.com/..."
                 value={form.recordingUrl}
                 onChange={e => setForm({ ...form, recordingUrl: e.target.value })}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
               />
-              <p className="text-xs text-gray-400 mt-1">Paste a Google Drive, Dropbox, or any accessible video link.</p>
+              <p className="text-xs text-gray-400 mt-1">
+                Paste a Google Drive, Google Meet, Dropbox, or any accessible video link.
+              </p>
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
